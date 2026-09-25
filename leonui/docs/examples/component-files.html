@@ -1,0 +1,17 @@
+<!doctype html><html lang="en"><head><title>components across files</title>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="/src/ui.css"><style>body{padding:1.25rem;font-size:15px}</style></head>
+<body>
+  <!-- Two components from two different files, one page. Props are attributes. -->
+  <h3 class="ui-t-subtitle" style="margin:0 0 8px">Team</h3>
+  <div ui:row gap="3" wrap>
+    <div ui:use="/docs/examples/components/user-card.html#user-card" name="Ada Lovelace" role="core"></div>
+    <div ui:use="/docs/examples/components/user-card.html#user-card" name="Grace Hopper" role="compiler"></div>
+  </div>
+  <h3 class="ui-t-subtitle" style="margin:14px 0 8px">Metrics</h3>
+  <div ui:row gap="3" wrap>
+    <div ui:use="/docs/examples/components/stat-tile.html#stat-tile" label="Stars" start="120"></div>
+    <div ui:use="/docs/examples/components/stat-tile.html#stat-tile" label="Forks" start="18"></div>
+  </div>
+<script type="module" src="/dist/leonui.js"></script>
+</body></html>

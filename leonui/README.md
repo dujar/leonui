@@ -406,6 +406,11 @@ capabilities: popover + invoker commands, CSS anchor positioning, view transitio
 `light-dark()`, `field-sizing`, and `moveBefore()`. There is no polyfill layer or legacy
 fallback — the platform matrix is part of the design.
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md). Security policy: [SECURITY.md](SECURITY.md).
+Code of Conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+
 ## Contributing and naming
 
 The grammar is governed by policy, not taste — read [`naming.md`](naming.md) before

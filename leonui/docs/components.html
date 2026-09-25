@@ -28,6 +28,13 @@
   <tr><td>Where</td><td>same page; for cross-page reuse, the pattern is your server include / a shared partial — the format stays plain HTML</td></tr>
 </table>
 
+<h2>Components across files</h2>
+<p><code>ui:use</code> also imports templates from other <strong>files</strong> — point it at the file and the template id:</p>
+
+<div data-example="/docs/examples/component-files.html"></div>
+
+<p>Each component above lives in its own file (<code>components/user-card.html</code>, <code>components/stat-tile.html</code>) with its props, state, and behavior. The file is fetched once, cached, and script-stripped — component files are declarative by definition; behavior comes from the grammar, and JavaScript behavior is the custom-element path.</p>
+
 <h2>3. Custom elements — a component others install</h2>
 <p>When a component must be <em>distributed</em> (a design system, an npm package), wrap it in a custom element whose markup is leonui. The runtime exports <code>attach</code> exactly for this:</p>
 

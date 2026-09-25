@@ -1,0 +1,10 @@
+<!doctype html><html><head><title>stat</title></head>
+<body>
+<template id="stat">
+  <span class="stat" ui:state="n: 0">
+    <b ui:bind="text: label + ': ' + (n + start)"></b>
+    <button ui:button ui:fx="click: set n = n + 1">+1</button>
+  </span>
+</template>
+<script>window.__pwned = true;</script>
+</body></html>

@@ -1,0 +1,18 @@
+<!doctype html><html><head><title>user-card component</title><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/src/ui.css"></head>
+<body>
+<!-- Each component lives in its own file and is imported with
+     ui:use="/docs/examples/components/user-card.html#user-card" -->
+<template id="user-card">
+  <div class="ui-card" style="min-width:14rem" ui:state="following: false">
+    <div ui:row gap="3">
+      <b style="flex:1" ui:bind="text: name"></b>
+      <span class="ui-badge ui-b-brand" ui:bind="text: role"></span>
+    </div>
+    <p class="ui-t-muted" style="margin:.4rem 0 .6rem" ui:bind="text: following ? 'Following' : 'Not following'"></p>
+    <button class="ui-btn ui-btn-primary" style="width:100%"
+            ui:bind-class="following ? 'ui-btn' : 'ui-btn ui-btn-primary'"
+            ui:fx="click: toggle following"
+            ui:bind="text: following ? 'Unfollow' : 'Follow'"></button>
+  </div>
+</template>
+</body></html>

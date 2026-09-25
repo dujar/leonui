@@ -1,0 +1,11 @@
+<!doctype html><html><head><title>user-card</title></head>
+<body>
+<template id="user-card">
+  <div class="ui-card" ui:state="following: false">
+    <b ui:bind="text: name"></b>
+    <span class="ui-badge" ui:bind="text: role"></span>
+    <button ui:button ui:fx="click: toggle following" ui:bind="text: following ? 'Unfollow' : 'Follow'"></button>
+  </div>
+</template>
+<script>window.__pwned = true;</script>
+</body></html>

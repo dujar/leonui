@@ -32,15 +32,43 @@ const SKIP_PROPS = new Set(['ui:use', 'id', 'class', 'style']);
  * roots) and keeps the use-branch from re-entering its own root */
 const USE_HOSTS = new WeakSet<Element>();
 
-/** ui:use="#tpl-id" — instantiate a <template> component: clone its content,
- * expose host attributes as prop signals, then run the FULL attach passes over
- * the instance (state inside the template is per-instance; props come from the
- * host and sit in scope above the clone). */
+/** cross-file component templates, cached per url#id so many instances fetch once */
+const remoteTemplates = new Map<string, Promise<HTMLTemplateElement | null>>();
+
+function loadRemoteTemplate(url: string, id: string): Promise<HTMLTemplateElement | null> {
+  const key = url + '#' + id;
+  const cached = remoteTemplates.get(key);
+  if (cached) return cached;
+  const p: Promise<HTMLTemplateElement | null> = fetch(url)
+    .then(r => {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.text();
+    })
+    .then(text => {
+      const doc = new DOMParser().parseFromString(text, 'text/html');
+      // component files are declarative by definition — scripts are the
+      // custom-element path, never the ui:use path
+      doc.querySelectorAll('script').forEach(s => s.remove());
+      return doc.querySelector('template[id="' + id + '"]') as HTMLTemplateElement | null;
+    })
+    .catch(e => {
+      warn(`ui:use: failed to load ${key}: ${(e as Error).message}`);
+      return null;
+    });
+  remoteTemplates.set(key, p);
+  return p;
+}
+
+/** ui:use="#tpl-id" or ui:use="/components/card.html#card" — instantiate a
+ * <template> component: clone its content, expose host attributes as prop
+ * signals, then run the FULL attach passes over the instance (state inside the
+ * template is per-instance; props come from the host and sit in scope above
+ * the clone). Remote files are fetched once, script-stripped, and cached. */
 export function attachUse(el: Element): void {
   if (USE_HOSTS.has(el)) return;
   const sel = el.getAttribute('ui:use')!;
-  const tpl = document.querySelector(sel);
-  if (!tpl || tpl.tagName !== 'TEMPLATE') throw new Error(`ui:use: template not found: ${sel}`);
+  const hash = sel.indexOf('#');
+  const isRemote = hash > 0 && (sel.startsWith('/') || sel.startsWith('./') || sel.startsWith('../') || /\.(html?|svg)$/i.test(sel.slice(0, hash)));
   USE_HOSTS.add(el);
   const scope: Scope = { signals: new Map(), meta: new Map() };
   scopes.set(el, scope);
@@ -48,8 +76,19 @@ export function attachUse(el: Element): void {
     if (SKIP_PROPS.has(a.name) || a.name.startsWith('on') || a.name.startsWith('data-') || a.name.startsWith('aria-')) continue;
     scope.signals.set(a.name, sig(coerce(a.value)));
   }
-  el.appendChild((tpl as HTMLTemplateElement).content.cloneNode(true));
-  attach(el);
+  const instantiate = (tpl: HTMLTemplateElement): void => {
+    el.appendChild(tpl.content.cloneNode(true));
+    attach(el);
+  };
+  if (isRemote) {
+    void loadRemoteTemplate(sel.slice(0, hash), sel.slice(hash + 1)).then(tpl => {
+      if (tpl) instantiate(tpl);
+    });
+    return;
+  }
+  const tpl = document.querySelector(sel);
+  if (!tpl || tpl.tagName !== 'TEMPLATE') throw new Error(`ui:use: template not found: ${sel}`);
+  instantiate(tpl as HTMLTemplateElement);
 }
 
 /** rows / component internals: enhancers + binds/model/fx per element */
