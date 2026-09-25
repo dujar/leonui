@@ -13,7 +13,7 @@ bun install                 # deps: typescript + @types/bun
 bun run build               # bundle src/ → dist/leonxstream.js (browser, ESM)
 bun run typecheck           # tsc --noEmit (strict, clean)
 bun run dev                 # dev server on :4700 (pages + mock API)
-bun test tests/             # 42 tests: 38 e2e + 4 framework-comparison (real Chromium via CDP)
+bun test tests/             # 58 tests: e2e, framework comparisons, grammar guarantees (real Chromium via CDP)
 bun run bench               # regenerate benchmark.md from measured runs (deliberate, not in tests)
 ```
 
@@ -64,6 +64,16 @@ Effect-verb invariants: request payloads (`with …`, `{path}` interpolation) ev
 ## Docs
 
 `bun run dev`, then open **/docs/** — a GitBook-style tutorial site where every example is live: the code block is the real source file and the panel under it runs it. Hello world → state & binds → lists → forms → server data (optimistic/rollback) → overlays → theming → verb reference.
+
+## Naming & growth
+
+[`naming.md`](naming.md) is the grammar's rulebook for contributors: two namespaces with a
+recognition test, five families with named satellites, a closed DOM-verbatim aspect list,
+verb rules mapped to platform capabilities, the growth protocol (new vocabulary enters
+only through five named doors — anything else is a custom element), and the grammar
+budget. `tests/skill.test.ts` enforces that every `ui:*` name in `src/` is documented in
+the skill, and the runtime itself warns on unknown verbs and attributes — typos are named
+errors, never silent no-ops.
 
 ## Agent-first distribution
 

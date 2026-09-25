@@ -74,7 +74,7 @@ Theming: override CSS custom properties (`--brand`, `--bg`, `--ink`, `--muted`, 
 - `ui:popover` styles/wires an element that must still carry the native `popover` attribute and be opened via a `popovertarget` invoker button (see pages/overlays.html).
 - State is visible only to descendants of the declaring element. Declare shared state on `<body>`.
 - Arrays are replaced immutably (`set rows = [ {...}, ...rows ]`), never mutated in place. Use `without(rows, item)` to remove.
-- One malformed attribute cannot break the page: failures are isolated per element and collected in `window.__ui.warns` — check it when debugging.
+- One malformed attribute cannot break the page: failures are isolated per element and collected in `window.__ui.warns` — check it when debugging. Unknown verbs and unknown `ui:*` attributes warn by name, so typos surface instead of silently doing nothing.
 - Remote data states: gate with `ui:bind-hidden="tasks.status != 'ok'"` for loading/error/ok panels; `refetch tasks` re-runs the GET.
 
 ## Reusable components
@@ -101,6 +101,13 @@ Styling half of reuse: variants (`variant="primary|ghost|…"`) and tokens — a
 ## Docs & live examples
 
 The docs site with runnable examples for every subsystem lives at `/docs/` on the dev server (source in `docs/`, examples in `docs/examples/` — each example file is the single source of truth shown as code AND rendered live). Copy patterns from `/pages/` (full component gallery) or `/docs/` (tutorials).
+
+## Naming & growth (contributors)
+
+The rulebook for naming anything in the grammar — family table, aspect rules, verb rules,
+growth protocol, grammar budget — is [`naming.md`](naming.md). New vocabulary enters only
+through its five doors; `tests/skill.test.ts` enforces that this file documents every
+shipped `ui:*` name.
 
 ## Dev loop
 

@@ -19,7 +19,9 @@
   <tr><td><code>hidden</code> / <code>disabled</code> / <code>checked</code> / <code>open</code></td><td>the property, boolean-coerced</td></tr>
   <tr><td><code>attr:name</code></td><td>any attribute</td></tr>
 </table>
-<p>One <code>ui:bind</code> attribute may hold several <code>aspect: expr</code> pairs separated by <code>;</code>; additional <em>attributes</em> use the hyphen form: <code>ui:bind-class="…"</code> (HTML drops duplicate attribute names).</p>
+<p>One <code>ui:bind</code> attribute may hold several <code>aspect: expr</code> pairs separated by <code>;</code>; additional <em>attributes</em> use the hyphen form: <code>ui:bind-class="…"</code> (HTML drops duplicate attribute names). The <code>attr:</code> aspect keeps its own colon in the list form — <code>ui:bind="attr:aria-label: label"</code>.</p>
+
+<p>Misspell anything — a verb, an aspect, an attribute, a signal — and the runtime says so by name in <code>window.__ui.warns</code>. Nothing fails silently.</p>
 
 <h2>Computed values</h2>
 <p><code>ui:computed="open: …"</code> on a state-bearing element derives a signal that recomputes when its dependencies change — filters, totals, sorted views.</p>
