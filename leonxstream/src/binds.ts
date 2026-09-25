@@ -36,15 +36,16 @@ export function attachBind(el: Element, aspect: string, expr: string): void {
 /** ui:bind="aspect: expr; aspect2: expr2" and ui:bind-<aspect>="expr" */
 export function attachBinds(el: Element): void {
   for (const a of [...el.attributes]) {
-    const m = a.name.match(/^ui:bind(?:-([a-zA-Z:]+))?$/);
+    const m = a.name.match(/^ui:bind(?:-([a-zA-Z:][\w:-]*))?$/);
     if (!m) continue;
     if (m[1]) attachBind(el, m[1]!, a.value);
     else {
       for (const part of a.value.split(';')) {
         if (!part.trim()) continue;
-        const ci = part.indexOf(':');
-        if (ci < 0) throw new Error(`ui: bad bind "${part}"`);
-        attachBind(el, part.slice(0, ci).trim(), part.slice(ci + 1).trim());
+        // "aspect: expr" — the attr: aspect keeps its own colon (attr:aria-label: text)
+        const m2 = part.trim().match(/^(attr:[\w-]+|[a-z]+):\s*([\s\S]+)$/);
+        if (!m2) throw new Error(`ui: bad bind "${part}"`);
+        attachBind(el, m2[1]!, m2[2]!.trim());
       }
     }
   }

@@ -5,16 +5,17 @@ description: Author interactive UI as plain HTML + leonxstream attributes (ui:st
 
 # leonxstream
 
-Typed reactive UI runtime. **HTML is the schema; the browser is the framework.** You author plain HTML plus four attribute families; a ~30 KB runtime (`dist/leonxstream.js`, auto-boots on import) provides signals, fine-grained binds, keyed lists, and a closed effect-verb catalog. No build step, no components, no vdom.
+Typed reactive UI runtime. **HTML is the schema; the browser is the framework.** You author plain HTML plus a small attribute grammar (five families plus satellites); a ~30 KB runtime (`dist/leonxstream.js`, auto-boots on import) provides signals, fine-grained binds, keyed lists, and a closed effect-verb catalog. No build step, no components, no vdom.
 
-## The four attribute families
+## The attribute families
 
 | Attribute | Meaning |
 |---|---|
 | `ui:state="name: value; name2: GET /url"` | Declare signals on an element. Descendants see them (nearest ancestor wins = scoping). Values: `'str'`, number, `true/false`, JSON array/object (single-quoted OK), `GET /url` remote cell → `{status, data}`. |
 | `ui:bind="aspect: expr; aspect2: expr2"` or `ui:bind-<aspect>="expr"` | One-way bind, auto-tracked. Aspects: `text class hidden disabled checked open` and `attr:<name>` (e.g. `ui:bind-attr:href`). |
 | `ui:model="path"` | Two-way bind on form controls. Writes the string `.value` — for checkboxes use `ui:bind-checked` + a `toggle` verb instead (booleans, not `"on"`/`""`). |
-| `ui:each="item in listPath" ui:key="id"` | Keyed list. The template element is cloned per item; inside it, `item` is a signal in scope. Add `ui:empty`-style notices via `ui:bind-hidden="list.length != 0"`. |
+| `ui:each="item in listPath" ui:key="id"` | Keyed list. The template element is cloned per item; inside it, `item` is a signal in scope. Empty-state notices via `ui:bind-hidden="list.length != 0"`. |
+| `ui:sortable` (on the ui:each template) | Drag-to-reorder primitive: live preview, drop rewrites the array immutably. |
 | `ui:fx="event: verb; verb; …"` | Event → effect verbs (below). Events are DOM event names (`click`, `change`, `submit`…). `submit` is auto-preventDefaulted — forms never navigate. |
 
 Plus: `ui:computed="name: expr"` (derived signal) and `ui:transition` (wrap the handler in a view transition).
@@ -24,7 +25,8 @@ Plus: `ui:computed="name: expr"` (derived signal) and `ui:transition` (wrap the 
 ```
 set path = expr          toggle path
 call METHOD /url [with {json}] [optimistic: set path = expr]
-onfail toast 'msg'       (runs only when the previous call failed; rollback is automatic with optimistic)
+onfail toast 'msg'       (payload runs only if the last call failed — never aborts)
+onsuccess toast 'msg'    (payload runs only if the last call succeeded — never aborts)
 toast expr               nav '#screen-id'        refetch cellName      # nav needs [data-screen] sections
 prompt 'question' into path                      confirm 'question'   (guard: aborts remaining verbs if declined)
 focus '#sel'             reset '#form-sel'       delay ms
@@ -46,7 +48,7 @@ Literals, dot paths, `.length`, `+ - * / %`, `== != < > <= >=`, `&& || ! ? :`, a
 
 ## Structural enhancers (classes + a11y come from the shipped `ui.css`)
 
-`ui:stack`/`ui:row` (attrs: `gap=1..8`, `align=start|center|end|between`, `wrap`, `center`), `ui:card` (`variant=inset|outline`), `ui:text` (`variant=title|subtitle|muted|strong|code`), `ui:badge` (`variant=brand|danger|warn|success`), `ui:button` (`variant=primary|ghost|danger|icon`, `block`), `ui:divider`, `ui:spacer size=1..8`, `ui:icon name=check|x|plus|search|chevron-down|dot|menu`, `ui:image ratio="3/2"` (error fallback class), `ui:field`, `ui:input/textarea/select/checkbox` (control classes), `ui:popover anchor="#btn" placement=…` (platform popover + anchor positioning), `ui:modal` (plain `<dialog>` + `command="show-modal" commandfor="id"` buttons — zero JS), `ui:tabs` (role=tab/tablist/tabpanel markup; arrow keys included).
+`ui:stack`/`ui:row` (attrs: `gap=1..8`, `align=start|center|end|between` — cross axis; `center` does both, `between`/`wrap` — main axis), `ui:card` (`variant=inset|outline`), `ui:text` (`variant=title|subtitle|muted|strong|code`), `ui:badge` (`variant=brand|danger|warn|success`), `ui:button` (`variant=primary|ghost|danger|icon`, `block`), `ui:divider`, `ui:spacer size=1..8`, `ui:icon name=check|x|plus|search|chevron-down|dot|menu`, `ui:image ratio="3/2"` (error fallback class), `ui:field`, `ui:input` / `ui:textarea` / `ui:select` / `ui:checkbox` (control classes), `ui:popover anchor="#btn" placement=…` (platform popover + anchor positioning), `ui:modal` (plain `<dialog>` + `command="show-modal" commandfor="id"` buttons — zero JS), `ui:tabs` (role=tab/tablist/tabpanel markup; arrow keys included).
 
 Theming: override CSS custom properties (`--brand`, `--bg`, `--ink`, `--muted`, `--line`, `--danger`, `--r`, `--ui-gap-*`, `--ui-text-*`) in a `theme.css`. Never write raw colors/sizes in markup — pick the token or variant. Dark mode is automatic (`light-dark()`).
 
@@ -106,7 +108,7 @@ The docs site with runnable examples for every subsystem lives at `/docs/` on th
 bun run dev            # serve pages + mock API (PORT env overrides; default 4700)
 bun run build          # bundle src/ → dist/leonxstream.js (minified)
 bun run typecheck      # tsc --noEmit (must stay clean)
-bun test tests/        # 42 tests: e2e + framework comparisons (real Chromium via CDP)
+bun test tests/        # 58 tests: e2e + comparisons + grammar guarantees (real Chromium via CDP)
 bun run bench          # regenerate benchmark.md from measured runs
 ```
 

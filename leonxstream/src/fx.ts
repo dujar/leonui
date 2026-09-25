@@ -20,7 +20,7 @@ export function parseVerb(src: string): Verb | null {
       v.path = mm[1]!; v.expr = mm[2]!;
     } else if (name === 'toggle') v.path = args;
     else if (name === 'toast') v.expr = args;
-    else if (name === 'onfail') v.expr = args.replace(/^toast\s+/, '');
+    else if (name === 'onfail' || name === 'onsuccess') v.expr = args.replace(/^toast\s+/, '');
     else if (name === 'delay') v.ms = Number(args);
     else if (name === 'nav') v.sel = args.startsWith("'") ? String(safeEval(args, null)) : args;
     else if (name === 'refetch') v.target = args;
@@ -39,6 +39,8 @@ export function parseVerb(src: string): Verb | null {
       const mm = args.match(/^(GET|POST|PUT|PATCH|DELETE)\s+(\S+)$/);
       if (!mm) throw new Error(`ui: bad call "${args}"`);
       v.method = mm[1] as Verb['method']; v.url = mm[2]!;
+    } else {
+      throw new Error(`ui: unknown verb "${name}" (see skill/SKILL.md for the catalog)`);
     }
   } catch (e) {
     throw new Error(`ui: verb "${name}": ${(e as Error).message}`);
@@ -134,14 +136,22 @@ export function attachFx(el: Element): void {
   const go = async (): Promise<void> => {
     let failed = false;
     for (const v of verbs) {
+      if (v.name === 'onfail' || v.name === 'onsuccess') {
+        // response gates: the payload runs only when the last call's outcome matches;
+        // the list itself always continues (onfail/onsuccess compose as pairs)
+        const match = v.name === 'onfail' ? failed : !failed;
+        if (match && v.expr) {
+          try { toast(safeEval(v.expr, el), v.name === 'onfail'); }
+          catch (e) { warn((e as Error).message); } // a bad gate payload must not abort the list
+        }
+        continue;
+      }
       try {
         if (v.name === 'set') setPath(v.path!, safeEval(v.expr!, el), el);
         else if (v.name === 'toggle') setPath(v.path!, !readPath(v.path!, el), el);
         else if (v.name === 'call') {
           try { failed = !(await doCall(v, el)); }
           catch (e) { warn((e as Error).message); failed = true; }
-        } else if (v.name === 'onfail') {
-          if (failed) toast(safeEval(v.expr!, el), true);
         } else if (v.name === 'toast') toast(safeEval(v.expr!, el), false);
         else if (v.name === 'nav') doNav(v.sel!);
         else if (v.name === 'refetch') doRefetch(v.target!, el);

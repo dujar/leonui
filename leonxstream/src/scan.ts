@@ -1,13 +1,29 @@
 /* scan.ts — per-element attach passes (each isolated: one bad node must not kill the page)
  * plus the reuse layer: ui:use template components and the public attach() API
  * that custom-element authors call on their own roots. */
-import { scopes, sig, guard } from './signals.ts';
+import { scopes, sig, guard, warn } from './signals.ts';
 import type { Scope } from './types.ts';
 import { coerce, attachState, attachComputed } from './state.ts';
 import { attachEach } from './each.ts';
 import { attachBinds, attachModel } from './binds.ts';
-import { attachEnhancers } from './enhancers.ts';
+import { attachEnhancers, ENHANCERS } from './enhancers.ts';
 import { attachFx } from './fx.ts';
+
+/** the known ui:* vocabulary — anything else on an element is a typo worth naming */
+const KNOWN_UI_ATTRS = new Set([
+  'ui:state', 'ui:computed', 'ui:model', 'ui:each', 'ui:key',
+  'ui:sortable', 'ui:use', 'ui:fx', 'ui:transition',
+]);
+
+function checkVocab(el: Element): void {
+  for (const a of [...el.attributes]) {
+    if (!a.name.startsWith('ui:')) continue;
+    if (KNOWN_UI_ATTRS.has(a.name)) continue;
+    if (a.name === 'ui:bind' || /^ui:bind-[\w:-]+$/.test(a.name)) continue;
+    if (a.name in ENHANCERS) continue;
+    warn(`ui: unknown attribute "${a.name}" (typo? the vocabulary lives in skill/SKILL.md)`);
+  }
+}
 
 /** host attributes that are NOT component props */
 const SKIP_PROPS = new Set(['ui:use', 'id', 'class', 'style']);
@@ -39,6 +55,7 @@ export function attachUse(el: Element): void {
 /** rows / component internals: enhancers + binds/model/fx per element */
 function attachFlat(root: Element): void {
   for (const el of [root, ...root.querySelectorAll('*')]) {
+    guard(() => checkVocab(el), 'vocab', el);
     guard(() => attachEnhancers(el), 'enhance', el);
     guard(() => attachBinds(el), 'bind', el);
     if (el.hasAttribute('ui:model')) guard(() => attachModel(el), 'model', el);
@@ -70,6 +87,7 @@ export function attach(root: Element | DocumentFragment): void {
     if (!el.isConnected) continue; // detached (e.g. removed each-template) — rows attach via attachSubtree
     if (el.hasAttribute('ui:each')) continue; // each-templates themselves: nothing to attach
     if (el.hasAttribute('ui:use') && !USE_HOSTS.has(el)) { guard(() => attachUse(el), 'use', el); continue; }
+    guard(() => checkVocab(el), 'vocab', el);
     guard(() => attachEnhancers(el), 'enhance', el);
     guard(() => attachBinds(el), 'bind', el);
     if (el.hasAttribute('ui:model')) guard(() => attachModel(el), 'model', el);
