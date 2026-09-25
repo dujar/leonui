@@ -12,19 +12,32 @@ export const warn = (msg: string) => {
   warns.push(String(msg));
   console.warn(msg);
 };
+
+/** the one place the per-element attach failure line is formatted */
+export const warnAttach = (kind: string, el: Element | undefined, e: unknown): void =>
+  warn(`ui: attach ${kind} on <${el?.tagName?.toLowerCase() ?? '?'}${el?.id ? '#' + el.id : ''}>: ${(e as Error).message}`);
+
 export const guard = (fn: () => void, kind?: string, el?: Element) => {
-  try { fn(); } catch (e) {
-    warn(`ui: attach ${kind ?? ''} on <${el?.tagName?.toLowerCase() ?? '?'}${el?.id ? '#' + el.id : ''}>: ${(e as Error).message}`);
-  }
+  try { fn(); } catch (e) { warnAttach(kind ?? '', el, e); }
 };
 
 /* ---------- dependency tracking ---------- */
 let CUR: Set<Set<() => void>> | null = null;
+let BAG: Array<() => void> | null = null;
+
 export const track = (fn: () => void): void => {
   const prev = CUR;
   const subs = CUR = new Set();
-  try { fn(); } finally { CUR = prev; for (const s of subs) s.add(fn); }
+  try { fn(); } finally {
+    CUR = prev;
+    for (const s of subs) {
+      s.add(fn);
+      // inside collect(), record how to unsubscribe so a removed subtree can be torn down
+      if (BAG) BAG.push(() => { s.delete(fn); });
+    }
+  }
 };
+
 /** Run fn, capturing the signals it read; caller decides what subscribes to the deps. */
 export const capture = <T>(fn: () => T): { value: T; deps: Set<Set<() => void>> } => {
   const prev = CUR;
@@ -32,13 +45,44 @@ export const capture = <T>(fn: () => T): { value: T; deps: Set<Set<() => void>> 
   try { return { value: fn(), deps }; } finally { CUR = prev; }
 };
 
+/** Run fn and return a disposer that unsubscribes everything it tracked.
+ *
+ * Without this, a bind on a long-lived signal keeps the *removed* element alive
+ * forever: the signal's subscriber set holds the update closure, which closes
+ * over the element. Keyed-list rows are the case that matters — they routinely
+ * bind page-level state (a filter, a search query), so every create/remove
+ * cycle would otherwise grow those sets without bound. */
+export const collect = <T>(fn: () => T): { value: T; dispose: () => void } => {
+  const prev = BAG;
+  const bag: Array<() => void> = [];
+  BAG = bag;
+  let value!: T;
+  try { value = fn(); } finally { BAG = prev; }
+  let done = false;
+  return {
+    value,
+    dispose: () => {
+      if (done) return;
+      done = true;
+      for (const d of bag) d();
+      bag.length = 0;
+    },
+  };
+};
+
 /* ---------- cells ---------- */
+/** subscriber sets, for diagnostics (`__ui.subCount`) — never for behaviour */
+const SUBS = new WeakMap<object, Set<() => void>>();
+export const subCount = (s: Signal): number => SUBS.get(s as object)?.size ?? 0;
+
 export const sig = <T>(v: T): Signal<T> => {
   const subs = new Set<() => void>();
-  return {
+  const cell: Signal<T> = {
     get value() { if (CUR) CUR.add(subs as Set<() => void>); return v; },
     set value(nv) { if (nv === v) return; v = nv; for (const f of [...subs]) f(); },
   };
+  SUBS.set(cell as object, subs);
+  return cell;
 };
 
 /* ---------- scopes on the ancestor chain ---------- */

@@ -16,16 +16,19 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
 else boot();
 
 /* debug/test hooks — internals exposed for `ui check`, the bench driver, and tests */
-import { parse, ev, safeEval } from './parser.ts';
-import { sig, scopes, findScope, readPath, setPath } from './signals.ts';
-import { parseVerb } from './fx.ts';
-import { BUILTINS } from './parser.ts';
+import { parse, ev, safeEval, BUILTINS } from './parser.ts';
+import { sig, scopes, findScope, readPath, setPath, subCount } from './signals.ts';
+import { coerce } from './state.ts';
+import { parseVerb, VERB_CATALOG } from './fx.ts';
 
 Object.assign(window as unknown as Record<string, unknown>, {
   __ui: {
     version: VERSION,
     parse, ev, safeEval, parseVerb, sig, scopes, findScope, readPath, setPath,
+    attach,  // re-attaching a root must be a no-op — tests assert exactly that
+    coerce,  // the declaration-literal grammar, so tests can pin it directly
     warns, BUILTINS,
-    verbs: { set: 1, toggle: 1, call: 1, toast: 1, nav: 1, refetch: 1, prompt: 1, confirm: 1, focus: 1, reset: 1, delay: 1, onfail: 1 },
+    subCount, // live subscriber count for a signal — how the row-teardown test proves release
+    verbs: VERB_CATALOG, // derived from fx.ts, so the catalog cannot drift
   },
 });

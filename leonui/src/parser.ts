@@ -38,7 +38,14 @@ export function parse(src: string): Ast {
   function primary(): Ast {
     ws();
     const c = src[i];
-    if (c === "'") { const m = lit(/'([^']*)'/); if (!m) throw new Error('ui: bad string'); return { t: 'str', v: m[1]! }; }
+    if (c === "'" || c === '"') {
+      // Both quote styles. The whitelist has no escape sequences, so a string may
+      // carry the *other* quote character (that is how `{ note: "it's" }` works) but
+      // not its own — which keeps the tokenizer honest and the grammar closed.
+      const m = lit(c === "'" ? /'([^']*)'/ : /"([^"]*)"/);
+      if (!m) throw new Error('ui: bad string');
+      return { t: 'str', v: m[1]! };
+    }
     if (c === '(') { i++; const e = ternary(); ws(); if (src[i] !== ')') throw new Error('ui: expected )'); i++; return e; }
     if (c === '[') {
       i++; const items: ArrItem[] = []; ws();
@@ -89,10 +96,21 @@ export function parse(src: string): Ast {
   }
   function pair(): { key: string; e: Ast } {
     ws();
-    const m = lit(/[A-Za-z_$][\w$]*/);
-    if (!m) throw new Error('ui: bad key');
+    // bare or quoted key: `{ a: 1 }` and `{ "a": 1 }` are the same object, so
+    // hand-written JSON object literals stay valid
+    const q = src[i];
+    let key: string;
+    if (q === "'" || q === '"') {
+      const m = lit(q === "'" ? /'([^']*)'/ : /"([^"]*)"/);
+      if (!m) throw new Error('ui: bad key');
+      key = m[1]!;
+    } else {
+      const m = lit(/[A-Za-z_$][\w$]*/);
+      if (!m) throw new Error('ui: bad key');
+      key = m[0]!;
+    }
     ws(); if (src[i] !== ':') throw new Error('ui: expected :'); i++;
-    return { key: m[0]!, e: ternary() };
+    return { key, e: ternary() };
   }
   function element(): ArrItem {
     ws();

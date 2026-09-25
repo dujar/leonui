@@ -4,6 +4,7 @@
  */
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
+import { fileURLToPath } from 'node:url';
 import { app } from '../serve/app.ts';
 import { Page, Browser } from '../tests/harness.ts';
 
@@ -82,18 +83,28 @@ async function run(): Promise<void> {
 
   /* ---------- bundle sizes (minified + gzip) ---------- */
   const sizes: Record<string, { min: number; gz: number }> = {};
-  const dist = new URL('../dist/leonui.js', import.meta.url).pathname;
-  const css = new URL('../src/ui.css', import.meta.url).pathname;
-  const vendor = (f: string) => new URL(`../bench/vendor/${f}`, import.meta.url).pathname;
+  // fileURLToPath, not URL.pathname: pathname percent-encodes, so any checkout
+  // whose path contains a space ("WorkBuddy AI") reads as "WorkBuddy%20AI" and ENOENTs
+  const dist = fileURLToPath(new URL('../dist/leonui.js', import.meta.url));
+  const css = fileURLToPath(new URL('../src/ui.css', import.meta.url));
+  const vendor = (f: string) => fileURLToPath(new URL(`../bench/vendor/${f}`, import.meta.url));
   const add = (name: string, files: string[]) => {
     const min = files.reduce((a, f) => a + readFileSync(f).length, 0);
     const gz = files.reduce((a, f) => a + gzipSync(readFileSync(f)).length, 0);
     sizes[name] = { min, gz };
   };
-  add('leonui', [dist, css]);
+  // Like for like: every framework row is framework JS only. React/Vue/Alpine
+  // ship no stylesheet in this comparison, and the bench page's own demo styles
+  // are inline in all four pages, so they cancel out. leonui's shipped
+  // stylesheet is measured as its own row — it is optional, and most of it this
+  // page never uses. Summing it into the leonui row made the one row that
+  // carries CSS the only row that did (the published 27.1 KB was 17.7 KB of
+  // runtime + 10.0 KB of stylesheet).
+  add('leonui', [dist]);
   add('react', [vendor('react-app.js')]);
   add('vue', [vendor('vue-app.js')]);
   add('alpine', [vendor('alpine-app.js')]);
+  add('leonui-css', [css]);
   writeFileSync(new URL('../tests/artifacts/sizes.json', import.meta.url), JSON.stringify(sizes, null, 2));
 
   /* ---------- generate benchmark.md from measured numbers ---------- */
@@ -115,6 +126,7 @@ Raw data: \`tests/artifacts/bench.json\`, \`tests/artifacts/sizes.json\`. Re-run
 - Ops: **mount** (navigate → scaffold interactive; identical 2-rAF stamp protocol on all four pages), **create 1000** rows, **update** (flip every 10th row's done class), **replace** (clear + create 1000), **remove all**.
 - Measurement: in-page \`performance.now()\` around the state op, settled with two \`requestAnimationFrame\`s (DOM commit + frame), median of 5 runs after 2 warmups. Single machine, Chromium headless shell (local CDP), warm cache. Micro-benchmark — not a full-app proxy.
 - **Known floor:** the two-rAF settle adds a constant ~2 frames (~33 ms at 60 Hz) to every op. Ops whose medians cluster within ~2 ms of that floor are **saturated** — the op completes within one frame on all runtimes and this benchmark cannot rank them. Only ops whose medians clearly exceed the floor discriminate.
+- **Mount is a single sample, not a median** — it is one \`__benchReadyAt\` reading per framework per run, so it is the noisiest column here (leonui has been observed between 34 and 66 ms across reruns of identical code). Read it as "first attach lands within a frame or two of the floor", never as a ranking.
 - Implementations are idiomatic per framework: React \`createElement\` + keys, Vue \`ref\` + \`v-for\` keyed, Alpine \`x-for\` keyed, leonui \`ui:each\` + immutable \`set\` via its public API (\`__ui.setPath\` mirrors the module export).
 
 ## Results (median ms — lower is better)
@@ -141,7 +153,7 @@ ${OPS.map(op => {
 |---|---|---|
 ${FRAMEWORKS.map(fw => `| ${fw} | ${kb(sizes[fw]!.min)} | ${kb(sizes[fw]!.gz)} |`).join('\n')}
 
-(leonui size = runtime bundle + shipped stylesheet, the complete framework cost.)
+**Like for like.** Every row above is framework JS only: React/Vue/Alpine ship no stylesheet into this comparison, and the bench page's own demo styles are inline in all four pages, so they cancel — leonui's row is the runtime alone. leonui's shipped stylesheet is a **separate, optional file** (\`src/ui.css\`, **${kb(sizes['leonui-css']!.min)} / ${kb(sizes['leonui-css']!.gz)}**), most of which this page never uses. Runtime + stylesheet together — the complete framework cost — is **${kb(sizes['leonui']!.min + sizes['leonui-css']!.min)} / ${kb(sizes['leonui']!.gz + sizes['leonui-css']!.gz)}**, still less than any single runtime above.
 
 ## Correctness
 
@@ -152,7 +164,9 @@ create 1000 with correct first/last labels, exactly 100 rows flip on update, tog
 
 - Update (every 10th of 1000 rows) is **saturated** — all four runtimes commit within a frame, so this benchmark does not distinguish their update paths; scaling the workload is future work.
 - Create/replace/remove differences are visible but small; treat sub-10 ms gaps as machine noise — reruns can flip tight rankings.
-- Bundle size is where the architecture shows: the whole leonui runtime ships in less code than any framework's runtime here — but it also does less (no scheduler, no suspense, no transition system).
+- **Bundle size is where the architecture shows.** leonui's runtime is a fraction of the smallest runtime here, and it also does less (no scheduler, no suspense, no transition system). Its row is JS only, like every other row — the stylesheet is listed separately above rather than folded in.
+- **These numbers are not comparable to the previously published table.** That one was generated before the v0.2.0 cross-file \`ui:use\` feature and was never regenerated, so it understated the runtime by ~4.6 KB minified. The 2026-09 accuracy/performance review added a further ~1.4 KB minified (duplicate-key detection, per-row subscription teardown, attach idempotence, a race guard on remote cells, tabs Home/End) — correctness that costs bytes.
+- **The mount column is not a ranking.** It is a single sample (see methodology) and moved 34 → 66 → 47 ms for byte-identical leonui builds across reruns, while the other three frameworks moved by a few ms in the same reruns. Any leonui mount number published from one run — including the 66.4 ms in the previous table — should be treated as an artifact of that run.
 - These numbers favor simple list workloads; frameworks with schedulers (React) pay latency on deliberately sync micro-ops but handle interruption under load, which this benchmark does not test.
 `;
   writeFileSync(new URL('../benchmark.md', import.meta.url), md);

@@ -9,33 +9,34 @@ Raw data: `tests/artifacts/bench.json`, `tests/artifacts/sizes.json`. Re-running
 - Ops: **mount** (navigate → scaffold interactive; identical 2-rAF stamp protocol on all four pages), **create 1000** rows, **update** (flip every 10th row's done class), **replace** (clear + create 1000), **remove all**.
 - Measurement: in-page `performance.now()` around the state op, settled with two `requestAnimationFrame`s (DOM commit + frame), median of 5 runs after 2 warmups. Single machine, Chromium headless shell (local CDP), warm cache. Micro-benchmark — not a full-app proxy.
 - **Known floor:** the two-rAF settle adds a constant ~2 frames (~33 ms at 60 Hz) to every op. Ops whose medians cluster within ~2 ms of that floor are **saturated** — the op completes within one frame on all runtimes and this benchmark cannot rank them. Only ops whose medians clearly exceed the floor discriminate.
+- **Mount is a single sample, not a median** — it is one `__benchReadyAt` reading per framework per run, so it is the noisiest column here (leonui has been observed between 34 and 66 ms across reruns of identical code). Read it as "first attach lands within a frame or two of the floor", never as a ranking.
 - Implementations are idiomatic per framework: React `createElement` + keys, Vue `ref` + `v-for` keyed, Alpine `x-for` keyed, leonui `ui:each` + immutable `set` via its public API (`__ui.setPath` mirrors the module export).
 
 ## Results (median ms — lower is better)
 
 | Framework | Mount | Create 1000 | Update 100 | Replace 1000 | Remove 1000 |
 |---|---|---|---|---|---|
-| leonui | 66.4 | 28.6 | 32.0 | 29.1 | 22.7 |
-| react | 40.8 | 30.6 | 31.8 | 30.5 | 28.8 |
-| vue | 38.9 | 29.5 | 31.7 | 29.9 | 26.6 |
-| alpine | 27.8 | 56.4 | 31.9 | 38.7 | 11.0 |
+| leonui | 35.1 | 30.6 | 32.6 | 31.2 | 28.6 |
+| react | 30.0 | 31.5 | 32.7 | 31.7 | 30.7 |
+| vue | 34.0 | 31.1 | 32.8 | 31.8 | 30.8 |
+| alpine | 30.8 | 29.0 | 32.9 | 29.3 | 19.0 |
 
 Op rankings (only meaningful when the winner beats the runner-up by > 5 ms; otherwise a statistical tie):
-- **create1000**: statistical tie at the top (runner-up gap 0.9 ms) — no ranking.
+- **create1000**: saturated / statistical tie (spread 2.5 ms) — no ranking.
 - **update**: saturated / statistical tie (spread 0.3 ms) — no ranking.
-- **replace**: statistical tie at the top (runner-up gap 0.8 ms) — no ranking.
-- **remove** → **alpine** (runner-up gap 11.7 ms).
+- **replace**: saturated / statistical tie (spread 2.5 ms) — no ranking.
+- **remove** → **alpine** (runner-up gap 9.6 ms).
 
 ## Bundle size (minified / gzip)
 
 | Framework | Minified | Gzipped |
 |---|---|---|
-| leonui | 27.1 KB | 9.2 KB |
-| react | 210.8 KB | 67.6 KB |
-| vue | 184.2 KB | 69.0 KB |
-| alpine | 57.1 KB | 20.3 KB |
+| leonui | 23.2 KB | 8.7 KB |
+| react | 210.8 KB | 66.9 KB |
+| vue | 184.2 KB | 68.3 KB |
+| alpine | 57.1 KB | 20.1 KB |
 
-(leonui size = runtime bundle + shipped stylesheet, the complete framework cost.)
+**Like for like.** Every row above is framework JS only: React/Vue/Alpine ship no stylesheet into this comparison, and the bench page's own demo styles are inline in all four pages, so they cancel — leonui's row is the runtime alone. leonui's shipped stylesheet is a **separate, optional file** (`src/ui.css`, **9.9 KB / 2.7 KB**), most of which this page never uses. Runtime + stylesheet together — the complete framework cost — is **33.1 KB / 11.4 KB**, still less than any single runtime above.
 
 ## Correctness
 
@@ -46,5 +47,7 @@ create 1000 with correct first/last labels, exactly 100 rows flip on update, tog
 
 - Update (every 10th of 1000 rows) is **saturated** — all four runtimes commit within a frame, so this benchmark does not distinguish their update paths; scaling the workload is future work.
 - Create/replace/remove differences are visible but small; treat sub-10 ms gaps as machine noise — reruns can flip tight rankings.
-- Bundle size is where the architecture shows: the whole leonui runtime ships in less code than any framework's runtime here — but it also does less (no scheduler, no suspense, no transition system).
+- **Bundle size is where the architecture shows.** leonui's runtime is a fraction of the smallest runtime here, and it also does less (no scheduler, no suspense, no transition system). Its row is JS only, like every other row — the stylesheet is listed separately above rather than folded in.
+- **These numbers are not comparable to the previously published table.** That one was generated before the v0.2.0 cross-file `ui:use` feature and was never regenerated, so it understated the runtime by ~4.6 KB minified. The 2026-09 accuracy/performance review added a further ~1.4 KB minified (duplicate-key detection, per-row subscription teardown, attach idempotence, a race guard on remote cells, tabs Home/End) — correctness that costs bytes.
+- **The mount column is not a ranking.** It is a single sample (see methodology) and moved 34 → 66 → 47 ms for byte-identical leonui builds across reruns, while the other three frameworks moved by a few ms in the same reruns. Any leonui mount number published from one run — including the 66.4 ms in the previous table — should be treated as an artifact of that run.
 - These numbers favor simple list workloads; frameworks with schedulers (React) pay latency on deliberately sync micro-ops but handle interruption under load, which this benchmark does not test.

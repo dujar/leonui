@@ -33,9 +33,11 @@ export function attachBind(el: Element, aspect: string, expr: string): void {
   track(update);
 }
 
-/** ui:bind="aspect: expr; aspect2: expr2" and ui:bind-<aspect>="expr" */
-export function attachBinds(el: Element): void {
-  for (const a of [...el.attributes]) {
+/** ui:bind="aspect: expr; aspect2: expr2" and ui:bind-<aspect>="expr"
+ * `attrs` is passed in by the attach hot path so the element's attribute list is
+ * materialised once per element instead of once per pass. */
+export function attachBinds(el: Element, attrs: Attr[] = [...el.attributes]): void {
+  for (const a of attrs) {
     const m = a.name.match(/^ui:bind(?:-([a-zA-Z:][\w:-]*))?$/);
     if (!m) continue;
     if (m[1]) attachBind(el, m[1]!, a.value);

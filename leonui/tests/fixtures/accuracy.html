@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>leonui — accuracy fixture</title>
+  <link rel="stylesheet" href="/src/ui.css">
+</head>
+<!-- One page, six runtime guarantees. Served by the dev server from /tests/fixtures/. -->
+<body ui:state="dupes: [ { id: 1, t: 'a' }, { id: 1, t: 'b' } ]; rows: [ { id: 1, t: 'a' }, { id: 2, t: 'b' } ]; nextId: 3; query: ''; txt: ''; race: GET /api/race">
+
+  <!-- (1) duplicate ui:key must warn by name and must not collapse two items into one row -->
+  <ul id="dupes" ui:each="d in dupes" ui:key="id">
+    <li class="d" ui:bind="text: d.t"></li>
+  </ul>
+
+  <!-- (2) rows bound to a PAGE-LEVEL signal — the teardown target -->
+  <ul id="bound" ui:each="row in rows" ui:key="id">
+    <li class="b" ui:bind="text: row.t" ui:bind-hidden="query == 'none'"></li>
+  </ul>
+  <button id="add-row" ui:fx="click: set rows = [ ...rows, { id: nextId, t: 'x' } ]; set nextId = nextId + 1">add</button>
+  <button id="del-row" ui:fx="click: set rows = without(rows, first(rows))">del</button>
+
+  <!-- (3) re-attaching must not stack a second listener: one click, one toast -->
+  <button id="toast-once" ui:fx="click: toast 'once'">toast</button>
+
+  <!-- (4) tabs: Home / End must move selection without scrolling the page -->
+  <div id="tabs" ui:tabs>
+    <div role="tablist">
+      <button role="tab" id="ta" aria-selected="true" aria-controls="pa">A</button>
+      <button role="tab" id="tb" aria-controls="pb">B</button>
+      <button role="tab" id="tc" aria-controls="pc">C</button>
+    </div>
+    <div role="tabpanel" id="pa">pa</div>
+    <div role="tabpanel" id="pb" hidden>pb</div>
+    <div role="tabpanel" id="pc" hidden>pc</div>
+  </div>
+
+  <!-- (5) reset must not write "on" (a checkbox's value) into a ui:model path -->
+  <form id="f">
+    <input id="txt" ui:model="txt">
+    <input id="chk" type="checkbox" ui:model="txt">
+    <button type="button" id="do-reset" ui:fx="click: reset '#f'">reset</button>
+  </form>
+
+  <!-- (6) a slow first response must not overwrite a newer one -->
+  <p id="race-status" ui:bind="text: race.status"></p>
+  <p id="race-data" ui:bind="text: race.status == 'ok' ? race.data.n : '-'"></p>
+  <button id="race-go" ui:fx="click: refetch race; refetch race">race</button>
+
+  <script type="module" src="/dist/leonui.js"></script>
+</body>
+</html>
