@@ -3,9 +3,10 @@
 **HTML is the schema; the browser is the framework.**
 
 leonui is a typed reactive UI runtime for plain HTML. You author regular markup plus a small
-attribute grammar — five families, fewer than 30 `ui:*` names — and a ~27 KB runtime
-(9 KB gzipped, stylesheet included) provides signals, fine-grained binds, keyed lists, and a
-closed catalog of effect verbs, compiled onto modern browser platform APIs.
+attribute grammar — five families, fewer than 30 `ui:*` names — and a ~23 KB runtime
+(8.7 KB gzipped) provides signals, fine-grained binds, keyed lists, and a closed catalog of
+effect verbs, compiled onto modern browser platform APIs. The stylesheet (`ui.css`) is a
+separate, optional file: 9.9 KB minified, 2.7 KB gzipped.
 
 **No build step. No components. No vdom. No eval. No arbitrary JavaScript in markup.**
 The expression language is a whitelist AST, every runtime warning is collected in
@@ -133,6 +134,9 @@ Notes that matter in practice:
 - **Values** in `ui:state` are strings, numbers, booleans, JSON (single quotes OK), or
   `GET /url` — a *remote cell* that fetches on attach and exposes
   `{status: 'loading'|'ok'|'error', data}`.
+- **Re-attaching a root is a no-op.** The runtime records what it has already wired, so
+  importing the bundle from both a page script and a component script attaches once — it
+  does not stack listeners or reset state.
 
 ## Effect verbs
 
@@ -150,7 +154,7 @@ Notes that matter in practice:
 | `prompt 'question' into path` | ask the user, store the answer |
 | `confirm 'question'` | guard — aborts the remaining verbs if declined |
 | `focus '#sel'` | move focus |
-| `reset '#form-sel'` | `form.reset()` + re-sync `ui:model` paths |
+| `reset '#form-sel'` | `form.reset()` + re-sync `ui:model` paths for single-value controls (checkbox, radio, file and `multiple` selects are skipped — `form.reset()` alone cannot restore them faithfully) |
 | `delay ms` | pause before the next verb |
 
 Invariants the runtime enforces (the skill documents them; tests assert them):
@@ -164,6 +168,8 @@ Invariants the runtime enforces (the skill documents them; tests assert them):
 - `call` sends no body unless `with` is given.
 - Local (non-server) lists need unique ids — keep a `nextId` counter in state and
   increment it on create; don't derive ids from `list.length` (they collide after deletions).
+- A remote cell ignores a response that a newer request has already superseded, so a slow
+  first `GET` cannot overwrite fresher data.
 
 ## The expression language
 
@@ -177,6 +183,9 @@ A whitelist AST — parsed and evaluated, never `eval`'d:
 Globals, method calls, and assignment are rejected at parse time. If you need an effect,
 use a verb; if you need new pure logic, add a builtin in `src/parser.ts` (`BUILTINS`) —
 never inline JS.
+
+String literals may be single- or double-quoted, and object-literal keys may be quoted, so
+values containing apostrophes (`{ note: "it's fine" }`) parse correctly.
 
 ## Lists and drag-to-reorder
 
@@ -196,6 +205,17 @@ never inline JS.
 Add `ui:sortable` to the template element and the list becomes drag-to-reorderable —
 live preview while dragging, and the drop rewrites the array immutably. Empty states:
 gate a notice with `ui:bind-hidden="todos.length != 0"`.
+
+**Rows are released, not just removed.** When an item leaves the list, the runtime
+disposes the subscriptions that row's binds created, so a page-level signal does not
+accumulate dead subscribers as the list churns. `tests/accuracy.test.ts` asserts it by
+counting live subscribers.
+
+**Keys must be unique.** Two items sharing a key can only ever be one row, so the runtime
+does not drop one silently: it warns
+`ui: each duplicate key "7" (ui:key="id") — later item wins` and applies the later item to
+the existing row. Duplicate keys still mean the earlier item is gone — fix the key, don't
+rely on the warning.
 
 ## Server data, optimistic updates, rollback
 
@@ -263,7 +283,7 @@ patterns from `/pages/` rather than inventing markup:
 | `ui:icon name=…` | `check`, `x`, `plus`, `search`, `chevron-down`, `dot`, `menu` |
 | `ui:image ratio="3/2"` | aspect ratio + error-fallback class |
 | `ui:field`, `ui:input`, `ui:textarea`, `ui:select`, `ui:checkbox` | form control classes |
-| `ui:tabs` | `role=tablist/tab/tabpanel` markup with arrow-key navigation |
+| `ui:tabs` | `role=tablist/tab/tabpanel` markup with arrow-key **and Home/End** navigation |
 
 Theming is CSS custom properties — override `--brand`, `--bg`, `--ink`, `--muted`,
 `--line`, `--danger`, `--r` (radius), `--ui-gap-*`, `--ui-text-*` in a `theme.css`.
@@ -286,10 +306,13 @@ leonui compiles onto the platform rather than around it:
 
 - Every runtime warning lands in **`window.__ui.warns`** — unknown verbs and unknown
   `ui:*` attributes are warned *by name*, so typos surface instead of silently doing
-  nothing.
+  nothing. Duplicate `ui:each` keys warn there too.
 - Failures are isolated per element during attach: one malformed attribute cannot break
   the page.
-- The debug hook `window.__ui` also exposes signal internals for tests and tooling.
+- The debug hook `window.__ui` also exposes the verb catalog (`__ui.verbs`), the
+  declaration-literal grammar (`__ui.coerce`), and the signal internals the tests use
+  (`__ui.subCount`, `__ui.findScope`, `__ui.parse`). `__ui.verbs` is derived from
+  `src/fx.ts`, so it cannot drift from the implemented catalog.
 
 ## Agent-first distribution
 
@@ -311,22 +334,26 @@ package*:
 
 ## Performance
 
-Measured, not hand-written: `bun run bench` regenerates
-[`benchmark.md`](benchmark.md) from real runs (identical page shape and ops across
-frameworks, median of 5 runs in Chromium headless). Snapshot from 2026-09-25:
+Measured, not hand-written: `bun run bench` regenerates [`benchmark.md`](benchmark.md)
+from real runs — identical page shape and ops across four frameworks, real Chromium over
+CDP. **`benchmark.md` is the only place measured numbers live**, because every run moves
+them; this section deliberately summarises rather than restates.
 
-| Framework | Bundle (min / gzip) | Mount | Create 1000 | Update 100 | Replace 1000 | Remove 1000 |
-|---|---|---|---|---|---|---|
-| **leonui** | **27.1 / 9.2 KB** | 66.4 | 28.6 | 32.0 | 29.1 | 22.7 |
-| react | 210.8 / 67.6 KB | 40.8 | 30.6 | 31.8 | 30.5 | 28.8 |
-| vue | 184.2 / 69.0 KB | 38.9 | 29.5 | 31.7 | 29.9 | 26.6 |
-| alpine | 57.1 / 20.3 KB | 27.8 | 56.4 | 31.9 | 38.7 | 11.0 |
+The one figure that is architectural rather than timing noise: the complete leonui runtime
+minifies to **23.2 KB (8.7 KB gzipped)**, and the optional stylesheet adds 9.9 KB
+(2.7 KB gzipped) — less, together, than the smallest runtime it is compared against.
 
-(medians in ms, lower is better; the benchmark's own honest reading: the update op is
-saturated — all four runtimes commit within a frame — and sub-10 ms gaps are machine
-noise. The discriminating number is bundle size: the entire framework, stylesheet
-included, ships in less code than any compared runtime. Full methodology and caveats in
-[benchmark.md](benchmark.md).)
+The benchmark's own honest reading, which this README endorses rather than edits around:
+
+- `update` is **saturated** — all four runtimes commit within a frame, so the op ranks
+  nothing. So are `create`, `replace`, and (usually) `remove`.
+- Sub-10 ms gaps are machine noise; reruns flip tight rankings.
+- The `mount` column is a **single sample**, not a median, and has moved 34 → 66 → 47 ms
+  for byte-identical leonui builds. It is not a ranking.
+- The compared frameworks do more than leonui does (no scheduler, no suspense, no
+  transition system). Bundle size is the honest axis.
+
+Full methodology and caveats in [benchmark.md](benchmark.md).
 
 ## Documentation
 
@@ -351,15 +378,20 @@ bun install              # deps: typescript + @types/bun (+ react/vue/alpine for
 bun run dev              # dev server on :4700 — pages, docs, mock API (PORT env overrides)
 bun run build            # bundle src/ → dist/leonui.js (ESM) + dist/leonui.iife.js, minified
 bun run typecheck        # tsc --noEmit — must stay clean
-bun test tests/          # 61 tests across 9 files, real Chromium over CDP
+bun test tests/          # 71 tests across 11 files, real Chromium over CDP
 bun run bench            # regenerate benchmark.md from measured runs
 ```
 
 The test suite drives a locally cached Chromium headless shell over the DevTools protocol
 with a dependency-free harness (`tests/harness.ts`): e2e for every component variant and
 verb, CSS contracts (tokens, dark-mode flip, cascade-layer precedence), framework
-comparison parity, skill/grammar consistency, and an agent emission audit. Artifacts land
-in `tests/artifacts/`.
+comparison parity, accuracy/regression guarantees, skill/grammar consistency, and an agent
+emission audit. Artifacts land in `tests/artifacts/`.
+
+Two environment notes for running the suite on a machine where the Chromium download is
+unavailable: set `UI_CHROME_BIN` to a Chrome/Chromium binary, and set
+`NO_PROXY=127.0.0.1,localhost` if an ambient HTTP proxy would otherwise capture the CDP
+websocket.
 
 Dev-server mock API (used by the docs examples):
 
@@ -381,19 +413,20 @@ src/
   parser.ts      whitelist expression language — typed AST, no eval, ever
   state.ts       ui:state declarations (incl. GET remote cells) + ui:computed
   binds.ts       ui:bind / ui:bind-<aspect> aspects + two-way ui:model
-  each.ts        ui:each — keyed lists, minimal-move DOM alignment
+  each.ts        ui:each — keyed lists, minimal-move DOM alignment, per-row teardown
   sortable.ts    ui:sortable — drag-to-reorder, immutable array rewrite
   enhancers.ts   structural attributes → shipped classes, a11y, platform wiring
   fx.ts          closed effect-verb catalog + onfail/onsuccess response gates
-  sortable.ts    the ui:sortable drag primitive (Tier-3: author declares what)
   scan.ts        attach passes (isolated) + ui:use template components + attach() API
-  cdn.ts         classic-script entry → dist/leonui.iife.js (window.leonui)
   boot.ts        full-tree boot + window.__ui debug hook
-  cdn.ts         IIFE build entry: boots on load, exposes window.leonui
+  cdn.ts         classic-script entry → dist/leonui.iife.js (window.leonui)
+  version.ts     version, inlined from package.json by the bundler
   index.ts       public entry — importing it boots the runtime
   ui.css         shipped stylesheet: @layer ui.tokens, ui.base
 serve/           Bun.serve dev server: static pages + mock REST API
-tests/           CDP harness + e2e, comparisons, grammar/skill/docs/sortable/audit suites
+tests/           CDP harness + e2e, accuracy, comparisons, grammar/skill/docs/sortable/audit suites
+bench/           the four benchmark pages + pre-bundled vendor runtimes
+scripts/         bench.ts — regenerates benchmark.md + tests/artifacts/
 pages/           component gallery (served at /pages/)
 docs/            tutorial site (served at /docs/) with live examples
 skill/           the packaged agent-facing grammar (byte-identical to repo-root skills/)
@@ -431,10 +464,13 @@ new behavior ships with a test in `tests/`.
 
 ## Status and known gaps
 
-Pre-1.0 (`v0.1.0`). The core is exercised by 60 green tests over real Chromium, but known
-v0 gaps are tracked and honest: subscriber disposal on row removal, reparenting
-re-resolution, shadow-DOM scope crossing, and SSR are not yet solved. Post-1.0 rename
-safety requires an ALIASES table (committed in `naming.md`) — until then, names can move.
+Pre-1.0 (`v0.2.1`). The core is exercised by 71 green tests over real Chromium. Known
+v0 gaps are tracked and honest: **reparenting re-resolution**, **shadow-DOM scope
+crossing**, and **SSR** are not yet solved. Subscriber disposal on row removal *was* on
+this list and is now solved — `ui:each` records the subscriptions each row's binds create
+and releases them when the row leaves, asserted in `tests/accuracy.test.ts`. Post-1.0
+rename safety requires an ALIASES table (committed in `naming.md`) — until then, names can
+move.
 
 ## License
 

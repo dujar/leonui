@@ -140,8 +140,17 @@ export const ENHANCERS: Record<string, Enhancer> = {
     tabs.forEach((t, i) => {
       t.addEventListener('click', () => select(i));
       t.addEventListener('keydown', e => {
-        if (e.key === 'ArrowRight') { const n = (i + 1) % tabs.length; select(n); tabs[n]!.focus(); }
-        if (e.key === 'ArrowLeft') { const n = (i - 1 + tabs.length) % tabs.length; select(n); tabs[n]!.focus(); }
+        // WAI-ARIA tabs: arrows move selection, Home/End jump to the ends.
+        // preventDefault matters — without it the page scrolls while focus roves.
+        let n = -1;
+        if (e.key === 'ArrowRight') n = (i + 1) % tabs.length;
+        else if (e.key === 'ArrowLeft') n = (i - 1 + tabs.length) % tabs.length;
+        else if (e.key === 'Home') n = 0;
+        else if (e.key === 'End') n = tabs.length - 1;
+        if (n < 0 || !tabs[n]) return;
+        e.preventDefault();
+        select(n);
+        tabs[n]!.focus();
       });
     });
     const initial = tabs.findIndex(t => t.getAttribute('aria-selected') === 'true');
@@ -149,12 +158,14 @@ export const ENHANCERS: Record<string, Enhancer> = {
   },
 };
 
-export function attachEnhancers(el: Element): void {
-  for (const a of [...el.attributes]) {
-    const enh = ENHANCERS[a.name];
-    if (enh) {
-      try { enh(el); }
-      catch (e) { warn((e as Error).message); }
-    }
+/** `attrs` is passed in by the attach hot path so the element's attribute list is
+ * materialised once per element instead of once per pass. */
+export function attachEnhancers(el: Element, attrs: Attr[] = [...el.attributes]): void {
+  for (const a of attrs) {
+    // hasOwn, not `in`: plain-object lookup would treat `toString`/`constructor`
+    // as enhancers and call Object.prototype members on the element
+    if (!Object.hasOwn(ENHANCERS, a.name)) continue;
+    try { ENHANCERS[a.name]!(el); }
+    catch (e) { warn((e as Error).message); }
   }
 }

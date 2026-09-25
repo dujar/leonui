@@ -6,6 +6,18 @@ import { fetchCell } from './state.ts';
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
+/* ---------- the closed catalog, stated once ---------- */
+/** effect verbs — rule 6 in naming.md. Order is the order they are documented in. */
+export const VERBS = [
+  'set', 'toggle', 'call', 'toast', 'nav', 'refetch', 'prompt', 'confirm', 'focus', 'reset', 'delay',
+] as const;
+/** response gates: they read the last call's outcome, they are not verbs (naming.md §6) */
+export const GATES = ['onfail', 'onsuccess'] as const;
+/** the catalog as a lookup record — `__ui.verbs`, and anything else that needs the list */
+export const VERB_CATALOG: Record<string, 1> = Object.fromEntries(
+  [...VERBS, ...GATES].map(v => [v, 1 as const]),
+);
+
 export function parseVerb(src: string): Verb | null {
   const m = src.trim().match(/^(\w+)\s*([\s\S]*)$/);
   if (!m) return null;
@@ -96,6 +108,20 @@ function doRefetch(name: string, el: Element): void {
   else warn(`ui: refetch target is not a remote cell: ${name}`);
 }
 
+/** a control whose `.value` actually represents its `ui:model` path.
+ * checkbox/radio carry boolean state (`checked`), file carries a fake path, and a
+ * multi-select's `.value` is only its first selected option — writing any of those
+ * back would corrupt the signal. SKILL.md documents that reset does not restore
+ * checkbox state; this makes the runtime agree with the documentation. */
+function modelValue(control: Element): string | null {
+  if (control instanceof HTMLInputElement) {
+    if (control.type === 'checkbox' || control.type === 'radio' || control.type === 'file') return null;
+    return control.value;
+  }
+  if (control instanceof HTMLSelectElement) return control.multiple ? null : control.value;
+  return (control as HTMLInputElement).value;
+}
+
 async function doCall(v: Verb, el: Element): Promise<boolean> {
   const url = v.url!.replace(/\{([\w.]+)\}/g, (_, p: string) => String(readPath(p, el)));
   // capture the optimistic path's signal ref up front: the optimistic set may remove
@@ -160,8 +186,10 @@ export function attachFx(el: Element): void {
           const f = document.querySelector(v.sel!);
           if (f && f.tagName === 'FORM') {
             (f as HTMLFormElement).reset();
-            for (const c of f.querySelectorAll('[ui\\:model]'))
-              setPath(c.getAttribute('ui:model')!, (c as HTMLInputElement).value, c);
+            for (const c of f.querySelectorAll('[ui\\:model]')) {
+              const value = modelValue(c);
+              if (value !== null) setPath(c.getAttribute('ui:model')!, value, c);
+            }
           }
         } else if (v.name === 'delay') await sleep(v.ms!);
         else if (v.name === 'prompt') {

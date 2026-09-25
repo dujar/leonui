@@ -391,6 +391,10 @@ t('css: tokens resolve as custom properties on :root', async () => {
 
 t('css: light-dark() flips with prefers-color-scheme (emulated dark)', async () => {
   const p = await page('/pages/layout.html');
+  // Pin the baseline explicitly. Reading it first inherits the *host* appearance,
+  // so on a dark-mode machine both reads come back dark and the flip looks absent.
+  await p.colorScheme('light');
+  await p.eval(`new Promise(r => setTimeout(r, 100))`);
   const bgLight = await style(p, 'body', 'backgroundColor');
   await p.colorScheme('dark');
   await p.eval(`new Promise(r => setTimeout(r, 100))`);

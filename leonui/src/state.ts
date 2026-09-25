@@ -3,16 +3,31 @@ import type { Signal } from './types.ts';
 import { scopes, sig, capture } from './signals.ts';
 import { safeEval } from './parser.ts';
 
+/** Coerce a declared value into a signal's initial value.
+ *
+ * Array/object literals go through the **whitelist parser**, not JSON.parse, so
+ * `ui:state` and every expression share one literal grammar: single-quoted
+ * strings, unquoted keys, spread. (The old JSON-repair pass replaced every `'`
+ * with `"`, which corrupted apostrophes — `{ note: "it's" }` became
+ * `{ note: "it"s" }` and threw.) Non-literals are rejected by the parser, which
+ * is the desired failure: a state value is a literal, never a signal reference. */
 export function coerce(v: string): unknown {
   if (v === 'true') return true;
   if (v === 'false') return false;
-  if (/^-?[\d.]+$/.test(v)) return Number(v);
+  // loose on purpose ("1.", ".5" are numbers) but tight enough to reject "1.2.3",
+  // which Number() would silently turn into NaN
+  if (/^-?(?:\d+\.?\d*|\.\d+)$/.test(v)) return Number(v);
   if (/^'.*'$/.test(v)) return v.slice(1, -1);
-  if (/^[[{]/.test(v)) return JSON.parse(v.replace(/([{,]\s*)([A-Za-z_$][\w$]*)\s*:/g, '$1"$2":').replace(/'/g, '"'));
+  if (/^[[{]/.test(v)) return safeEval(v, null);
   return v;
 }
 
+/** per-cell request sequence — a slow first response must not overwrite a newer one */
+const reqSeq = new WeakMap<Signal, number>();
+
 export function fetchCell(s: Signal, url: string): void {
+  const seq = (reqSeq.get(s) ?? 0) + 1;
+  reqSeq.set(s, seq);
   const prev = s.value as { data?: unknown } | null;
   s.value = { status: 'loading', data: prev?.data ?? null };
   fetch(url)
@@ -20,8 +35,8 @@ export function fetchCell(s: Signal, url: string): void {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
     })
-    .then(d => { s.value = { status: 'ok', data: d }; })
-    .catch(e => { s.value = { status: 'error', data: String((e as Error).message || e) }; });
+    .then(d => { if (reqSeq.get(s) === seq) s.value = { status: 'ok', data: d }; })
+    .catch(e => { if (reqSeq.get(s) === seq) s.value = { status: 'error', data: String((e as Error).message || e) }; });
 }
 
 export function attachState(el: Element): void {

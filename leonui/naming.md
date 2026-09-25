@@ -67,10 +67,10 @@ a custom element, or it does not belong in a bind.
 what the user *sees* (never the implementation: `ui:flexbox` is a bug). An enhancer's
 props are **bare adjectives/nouns** (`gap`, `align`, `wrap`, `center`, `variant`,
 `block`, `ratio`, `name`, `anchor`, `placement`, `size`) — exactly as if the enhancer
-were a native element: `<stack gap="2">` reads like `<input value="…">`. Props must be data-only (serializable). Each enhancer **states its allowed host tags**
-in the vocabulary table, which makes the collision rule checkable: a bare prop that HTML
-defines is off-limits on hosts where HTML gives it meaning (a `name` prop may live on a
-decorated `<div>`, never on an `<input>`). Axis-carrying props (`align`) must document
+were a native element: `<stack gap="2">` reads like `<input value="…">`. Props must be data-only (serializable). The vocabulary table lists each enhancer's props; a **host
+restriction** must additionally be stated there for any enhancer whose bare prop name
+collides with an attribute HTML already gives meaning to (a `name` prop may live on a
+decorated `<div>`, never on an `<input>`) — a rule nothing states is not a rule. Axis-carrying props (`align`) must document
 which axis they move — `ui:row align` moves the **cross** axis; `center` does both axes.
 
 ## 5. Flags: state what becomes true
@@ -82,7 +82,9 @@ props (rule 4).
 
 ## 6. Verbs: one English word, mapped to a platform capability
 
-`set toggle call nav refetch toast prompt confirm focus reset delay`.
+`set toggle call toast nav refetch prompt confirm focus reset delay`
+(11 verbs — the same list, in the same order, as `VERBS` in `src/fx.ts` and the catalog in
+`skill/SKILL.md`; `src/fx.ts` is the single source, `window.__ui.verbs` is derived from it).
 A verb is (a) one lowercase English verb or verb+particle, (b) implemented on top of a
 **named platform capability** (fetch, popover, view transitions, focus()) or a whitelisted
 pure builtin, (c) documented with its failure story. Unknown verbs are a named error,
@@ -102,10 +104,10 @@ abbreviations).
 New vocabulary enters **only** through one of:
 1. new **aspect** — must mirror a DOM property (rule 3);
 2. new **verb** — rule 6, with platform mapping stated;
-3. new **enhancer** — rule 4, with shipped class and/or behavior wiring plus its allowed
-   host tags;
-4. new **pure builtin** in the expression whitelist (`without contains first sortBy join…`)
-   — must be side-effect-free and generically useful;
+3. new **enhancer** — rule 4, with shipped class and/or behavior wiring, plus a stated
+   host restriction wherever rule 4 requires one;
+4. new **pure builtin** in the expression whitelist (`without contains first sortBy`, and
+   whatever joins them) — must be side-effect-free and generically useful;
 5. **anything beyond these = a custom element**, which is the designated escape valve
    for library authors — the page grammar stays closed and checkable.
 

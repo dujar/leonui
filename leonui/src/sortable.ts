@@ -21,7 +21,15 @@ interface SortableConfig {
 export function makeSortable({ parent, rows, anchor, listRef }: SortableConfig): void {
   let dragged: Element | null = null;
 
-  const rowEls = (): Element[] => [...parent.querySelectorAll('[data-sort-key]')];
+  // direct children only: a deep querySelectorAll would sweep up the rows of a
+  // nested ui:sortable list and let an inner drag reorder the outer list
+  const rowEls = (): Element[] => [...parent.children].filter(c => c.hasAttribute('data-sort-key'));
+
+  const currentList = (): unknown[] => {
+    let v: unknown = listRef.sig.value;
+    for (const s of listRef.segs) v = (v as Record<string, unknown> | null | undefined)?.[s];
+    return Array.isArray(v) ? (v as unknown[]) : [];
+  };
 
   parent.addEventListener('dragstart', (ev: Event) => { const e = ev as DragEvent;
     const target = e.target as Element;
@@ -63,6 +71,10 @@ export function makeSortable({ parent, rows, anchor, listRef }: SortableConfig):
       const item = byKey.get(node.getAttribute('data-sort-key')!);
       if (item !== undefined) ordered.push(item);
     }
+    // a drag that ended where it started must not write: the immutable set would
+    // hand the list signal a new array and re-render every row for no change
+    const before = currentList();
+    if (ordered.length === before.length && ordered.every((x, i) => x === before[i])) return;
     try { writeRef(listRef, ordered); }
     catch (err) { warn((err as Error).message); }
   };

@@ -1,7 +1,7 @@
 /* scan.ts — per-element attach passes (each isolated: one bad node must not kill the page)
  * plus the reuse layer: ui:use template components and the public attach() API
  * that custom-element authors call on their own roots. */
-import { scopes, sig, guard, warn } from './signals.ts';
+import { scopes, sig, warn, warnAttach } from './signals.ts';
 import type { Scope } from './types.ts';
 import { coerce, attachState, attachComputed } from './state.ts';
 import { attachEach } from './each.ts';
@@ -15,22 +15,41 @@ const KNOWN_UI_ATTRS = new Set([
   'ui:sortable', 'ui:use', 'ui:fx', 'ui:transition',
 ]);
 
-function checkVocab(el: Element): void {
-  for (const a of [...el.attributes]) {
+/** one attribute array per element: checkVocab / enhancers / binds all read from
+ * this snapshot instead of each re-materialising el.attributes */
+const attrsOf = (el: Element): Attr[] => [...el.attributes];
+
+function checkVocab(attrs: Attr[]): void {
+  for (const a of attrs) {
     if (!a.name.startsWith('ui:')) continue;
     if (KNOWN_UI_ATTRS.has(a.name)) continue;
     if (a.name === 'ui:bind' || /^ui:bind-[\w:-]+$/.test(a.name)) continue;
-    if (a.name in ENHANCERS) continue;
+    if (Object.hasOwn(ENHANCERS, a.name)) continue;
     warn(`ui: unknown attribute "${a.name}" (typo? the vocabulary lives in skill/SKILL.md)`);
   }
 }
 
-/** host attributes that are NOT component props */
-const SKIP_PROPS = new Set(['ui:use', 'id', 'class', 'style']);
+/** host attributes that are NOT component props. `id`/`class`/`style` stay layout,
+ * `data-*`/`aria-*` stay native lanes, and every `ui:*` name belongs to the grammar —
+ * a `ui:fx` on a ui:use host is that host's own handler, never a prop named "ui:fx". */
+const SKIP_PROPS = new Set(['id', 'class', 'style']);
 
 /** hosts already instantiated — guards re-entrancy (attach over overlapping
  * roots) and keeps the use-branch from re-entering its own root */
 const USE_HOSTS = new WeakSet<Element>();
+
+/** elements already wired by attachElement. Wiring is one-shot: re-attaching an
+ * overlapping root would otherwise stack a second click/keydown listener on every
+ * ui:tabs tab, a second input listener on every ui:model control, and a second
+ * subscription for every bind. */
+const WIRED = new WeakSet<Element>();
+
+/** declaration passes are one-shot per element too. Re-running attachState would
+ * build a *replacement* scope and silently detach every bind already subscribed to
+ * the old signals — re-attaching must be safe, so declarations are guarded.
+ * Two sets, not one: an element may carry both ui:state and ui:computed. */
+const STATE_DONE = new WeakSet<Element>();
+const COMPUTED_DONE = new WeakSet<Element>();
 
 /** cross-file component templates, cached per url#id so many instances fetch once */
 const remoteTemplates = new Map<string, Promise<HTMLTemplateElement | null>>();
@@ -72,8 +91,8 @@ export function attachUse(el: Element): void {
   USE_HOSTS.add(el);
   const scope: Scope = { signals: new Map(), meta: new Map() };
   scopes.set(el, scope);
-  for (const a of [...el.attributes]) {
-    if (SKIP_PROPS.has(a.name) || a.name.startsWith('on') || a.name.startsWith('data-') || a.name.startsWith('aria-')) continue;
+  for (const a of attrsOf(el)) {
+    if (a.name.startsWith('ui:') || SKIP_PROPS.has(a.name) || a.name.startsWith('on') || a.name.startsWith('data-') || a.name.startsWith('aria-')) continue;
     scope.signals.set(a.name, sig(coerce(a.value)));
   }
   const instantiate = (tpl: HTMLTemplateElement): void => {
@@ -91,15 +110,23 @@ export function attachUse(el: Element): void {
   instantiate(tpl as HTMLTemplateElement);
 }
 
+/** The per-element hot path. One attribute snapshot, one wiring pass, and a plain
+ * try/catch per stage (no closure per stage) — attach runs over every element in
+ * the tree, so this is the cost that shows up in mount time. */
+function attachElement(el: Element, attrs: Attr[]): void {
+  if (WIRED.has(el)) return;
+  WIRED.add(el);
+  try { checkVocab(attrs); } catch (e) { warnAttach('vocab', el, e); }
+  try { attachEnhancers(el, attrs); } catch (e) { warnAttach('enhance', el, e); }
+  try { attachBinds(el, attrs); } catch (e) { warnAttach('bind', el, e); }
+  if (el.hasAttribute('ui:model')) { try { attachModel(el); } catch (e) { warnAttach('model', el, e); } }
+  if (el.hasAttribute('ui:fx')) { try { attachFx(el); } catch (e) { warnAttach('fx', el, e); } }
+}
+
 /** rows / component internals: enhancers + binds/model/fx per element */
 function attachFlat(root: Element): void {
-  for (const el of [root, ...root.querySelectorAll('*')]) {
-    guard(() => checkVocab(el), 'vocab', el);
-    guard(() => attachEnhancers(el), 'enhance', el);
-    guard(() => attachBinds(el), 'bind', el);
-    if (el.hasAttribute('ui:model')) guard(() => attachModel(el), 'model', el);
-    if (el.hasAttribute('ui:fx')) guard(() => attachFx(el), 'fx', el);
-  }
+  attachElement(root, attrsOf(root));
+  for (const el of root.querySelectorAll('*')) attachElement(el, attrsOf(el));
 }
 
 /** rows (cloned per item in ui:each): no state/each/use passes */
@@ -111,25 +138,25 @@ export function attachSubtree(root: Element): void {
  * after injecting ui:* markup (light DOM or shadow root). */
 export function attach(root: Element | DocumentFragment): void {
   const els: Element[] = root instanceof Element ? [root, ...root.querySelectorAll('*')] : [...root.querySelectorAll('*')];
+  for (const el of els) {
+    if (!el.hasAttribute('ui:state') || STATE_DONE.has(el)) continue;
+    STATE_DONE.add(el);
+    try { attachState(el); } catch (e) { warnAttach('state', el, e); }
+  }
+  for (const el of els) {
+    if (!el.hasAttribute('ui:computed') || COMPUTED_DONE.has(el)) continue;
+    COMPUTED_DONE.add(el);
+    const attr = el.getAttribute('ui:computed')!;
+    const ci = attr.indexOf(':');
+    try { attachComputed(el, attr.slice(0, ci).trim(), attr.slice(ci + 1).trim()); }
+    catch (e) { warnAttach('computed', el, e); }
+  }
   for (const el of els)
-    if (el.hasAttribute('ui:state')) guard(() => attachState(el), 'state', el);
-  for (const el of els)
-    if (el.hasAttribute('ui:computed'))
-      guard(() => {
-        const attr = el.getAttribute('ui:computed')!;
-        const ci = attr.indexOf(':');
-        attachComputed(el, attr.slice(0, ci).trim(), attr.slice(ci + 1).trim());
-      }, 'computed', el);
-  for (const el of els)
-    if (el.hasAttribute('ui:each')) guard(() => attachEach(el), 'each', el);
+    if (el.hasAttribute('ui:each')) { try { attachEach(el); } catch (e) { warnAttach('each', el, e); } }
   for (const el of els) {
     if (!el.isConnected) continue; // detached (e.g. removed each-template) — rows attach via attachSubtree
     if (el.hasAttribute('ui:each')) continue; // each-templates themselves: nothing to attach
-    if (el.hasAttribute('ui:use') && !USE_HOSTS.has(el)) { guard(() => attachUse(el), 'use', el); continue; }
-    guard(() => checkVocab(el), 'vocab', el);
-    guard(() => attachEnhancers(el), 'enhance', el);
-    guard(() => attachBinds(el), 'bind', el);
-    if (el.hasAttribute('ui:model')) guard(() => attachModel(el), 'model', el);
-    if (el.hasAttribute('ui:fx')) guard(() => attachFx(el), 'fx', el);
+    if (el.hasAttribute('ui:use') && !USE_HOSTS.has(el)) { try { attachUse(el); } catch (e) { warnAttach('use', el, e); } continue; }
+    attachElement(el, attrsOf(el));
   }
 }
