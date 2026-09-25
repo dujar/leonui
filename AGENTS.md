@@ -4,6 +4,7 @@ This repository's UI is built with **leonui**: plain HTML + `ui:*` attributes, n
 
 - **Skill (start here):** [`skills/leonui/SKILL.md`](skills/leonui/SKILL.md) — attribute grammar, effect verbs, expression whitelist, gotchas. This is the agent-agnostic discovery copy; [`leonui/skill/SKILL.md`](leonui/skill/SKILL.md) is the byte-identical twin that ships with the npm package. A drift test (`leonui/tests/skill.test.ts`) keeps the two identical.
 - **Naming rulebook:** [`leonui/naming.md`](leonui/naming.md) — how the grammar names things and how it may grow; read before proposing new attributes or verbs.
+- **Contributing:** [`CONTRIBUTING.md`](CONTRIBUTING.md) — PR standards and the slop list; [`MAINTAINERS.md`](MAINTAINERS.md) — review bar and release process. CI runs typecheck + the full suite on every PR.
 - **Docs with live examples:** run `bun run dev`, then open `/docs/` (tutorials: hello world → lists → forms → server data → theming). The full component gallery is at `/pages/` — copy patterns from there rather than inventing syntax.
 - **Dev loop:** `bun run dev` (pages + mock API on :4700) · `bun run build` · `bun run typecheck` · `bun test tests/` (61 tests over real Chromium) · `bun run bench` (regenerates `benchmark.md`).
 - **Rules that keep you honest:** typecheck must stay clean; the expression language is a whitelist (never eval); all runtime warnings collect in `window.__ui.warns`; state is declared on ancestors and visible to descendants.

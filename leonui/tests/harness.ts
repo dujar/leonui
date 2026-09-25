@@ -2,15 +2,29 @@
  * headless shell, talks CDP over WebSocket (Bun's global), exposes page helpers.
  */
 import { spawn } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const CHROME_CANDIDATES = [
-  process.env.UI_CHROME_BIN,
-  join(process.env.HOME ?? '', '.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell'),
-  join(process.env.HOME ?? '', '.cache/ms-playwright/chromium-1243/chrome-linux/chrome'),
-].filter((b): b is string => !!b);
+/** Discover any locally installed Playwright Chromium (any build number), so
+ * CI (playwright install) and developer machines both work. UI_CHROME_BIN wins. */
+function discoverChrome(): string[] {
+  const out: string[] = [];
+  if (process.env.UI_CHROME_BIN) out.push(process.env.UI_CHROME_BIN);
+  const cache = join(process.env.HOME ?? '', '.cache', 'ms-playwright');
+  try {
+    const builds = readdirSync(cache)
+      .filter(d => d.startsWith('chromium_headless_shell-') || d.startsWith('chromium-'))
+      .sort((a, b) => Number(b.split('-')[1]) - Number(a.split('-')[1]));
+    for (const b of builds) {
+      if (b.startsWith('chromium_headless_shell-'))
+        out.push(join(cache, b, 'chrome-headless-shell-linux64', 'chrome-headless-shell'));
+      else out.push(join(cache, b, 'chrome-linux', 'chrome'));
+    }
+  } catch { /* no cache dir */ }
+  return out;
+}
+const CHROME_CANDIDATES = discoverChrome();
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 

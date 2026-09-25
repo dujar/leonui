@@ -1,0 +1,21 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install
+      - run: bun run build
+      - name: Install Chromium (any build — the harness discovers it)
+        run: bunx playwright@latest install chromium --with-deps
+      - run: bun run typecheck
+      - name: e2e + comparison + grammar tests (real Chromium)
+        run: bun test tests/
