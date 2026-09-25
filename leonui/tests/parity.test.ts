@@ -119,3 +119,76 @@ t('parity: a clean page is silent in both halves', async () => {
   assert.deepEqual(staticMsgs(good), [], 'ui check');
   assert.deepEqual(await runRuntime(good), [], 'the runtime');
 });
+
+/* ================= the asymmetries, named ================= */
+
+t('parity: a ui:key no item can satisfy is runtime-only, and it is made', async () => {
+  // The other side of the contract: a finding only ONE half can make. Nothing static
+  // can see this one — no checker knows the shape of the data — so the runtime has
+  // to say it, because the runtime is holding the items. Left unsaid it is the last
+  // silent fallback in each.ts: every row keys by index, the list still renders, and
+  // the keyed-list guarantee the attribute exists for is quietly gone.
+  const rows = (attrs: string): string =>
+    `<section ui:state="rows: [{ slug: 'a' }, { slug: 'b' }]">
+  <ul ui:each="r in rows" ${attrs}><li ui:bind="text: r.slug">x</li></ul>
+</section>`;
+
+  const wrong = rows('ui:key="id"');
+  assert.deepEqual(staticMsgs(wrong), [], 'ui check cannot see the data, so it says nothing');
+  const warned = await runRuntime(wrong);
+  assert.equal(warned.length, 1, JSON.stringify(warned));
+  assert.match(warned[0]!, /ui:key="id" — no item has that property, so rows fall back to their index/);
+
+  // ...and it is named once, not once per row
+  const three = rows('ui:key="nope"').replace("'b' }]", "'b' }, { slug: 'c' }]");
+  assert.equal((await runRuntime(three)).length, 1);
+
+  // The two controls. A key that resolves is silent, and the *implicit* `id` default
+  // is silent too: the runtime chose that default, not the author, and a list that
+  // never reorders is perfectly fine keyed by index. Warning about either would be
+  // crying wolf, which is worse than saying nothing.
+  assert.deepEqual(await runRuntime(rows('ui:key="slug"')), [], 'a key that resolves');
+  assert.deepEqual(await runRuntime(rows('')), [], 'the default key, chosen by the runtime');
+  assert.deepEqual(await runRuntime(`<ul ui:state="xs: ['a', 'b']" ui:each="x in xs" ui:key="id"><li ui:bind="text: x"></li></ul>`),
+    [], 'a list of strings has no properties to key by');
+});
+
+t('parity: an attribute a ui:each row can never honour is named, not ignored', async () => {
+  // A row runs the bind, enhancer and effect passes only. Declare (ui:state,
+  // ui:computed) and compose (ui:each, ui:use) belong to the *page*, so inside a
+  // template they do nothing at all — the row renders, the attribute is silently
+  // dropped. A silent no-op is the one thing this vocabulary may not contain.
+  // `ui check` cannot make this finding either: which element sits inside which
+  // template is a nesting question, and its scanner reads tags rather than trees.
+  const src = `<section ui:state="rows: [{ id: 1 }]">
+  <ul ui:each="r in rows" ui:key="id">
+    <li ui:state="n: 0">a</li>
+    <li ui:computed="d: rows.length">b</li>
+    <li ui:use="#tpl">c</li>
+    <li ui:each="q in rows">d</li>
+  </ul>
+</section>`;
+  assert.deepEqual(staticMsgs(src), [], 'invisible to a scanner that does not track nesting');
+  const runtime = await runRuntime(src);
+  const inert = runtime.filter(w => /is not attached \(a row runs binds/.test(w));
+  assert.equal(inert.length, 4, `one per source element, got ${JSON.stringify(runtime)}`);
+  for (const name of ['ui:state', 'ui:computed', 'ui:use', 'ui:each']) {
+    assert.ok(inert.some(w => w.includes(`${name} inside a ui:each template`)), `${name}: ${JSON.stringify(inert)}`);
+  }
+});
+
+t('parity: a ui:tabs with nothing to wire is named, not rendered plausibly', async () => {
+  // `ui:tabs` finds its tabs with `[role="tab"]`. With none, the class lands, no tab
+  // is ever selected and every panel shows at once — a silent no-op, and the same
+  // shape of mistake as a wrong host, one level in. `ui check` cannot make this
+  // finding: a descendant selector is a selector question, a documented non-goal of
+  // a scanner that reads tags rather than trees. So the runtime is the half that says it.
+  const runtime = await runRuntime(`<div ui:tabs><button>One</button><section>panel</section></div>`);
+  assert.equal(runtime.length, 1, JSON.stringify(runtime));
+  assert.match(runtime[0]!, /ui:tabs found no \[role="tab"\] inside <div> — nothing to wire/);
+
+  // the control: with a tab it wires silently
+  assert.deepEqual(
+    await runRuntime(`<div ui:tabs><button role="tab">One</button><section role="tabpanel">panel</section></div>`),
+    []);
+});

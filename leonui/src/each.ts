@@ -12,6 +12,26 @@ export function attachEach(el: Element): void {
   const itemName = parts[0]!;
   const listPath = parts[2]!;
   const keyAttr = el.getAttribute('ui:key') || 'id';
+  const keyDeclared = el.hasAttribute('ui:key');
+  /** `ui:key` naming a property no item has is the last silent fallback in this
+   * file: every row keys by index, the list still renders, and the keyed-list
+   * guarantee the attribute exists for is gone. Nothing static can see it — no
+   * checker knows the shape of the data — but the data itself can, so it is named
+   * once, from the first item that could have told us.
+   *
+   * Only when `ui:key` was actually written. The `id` default is the runtime's
+   * choice, not the author's, and a list that never reorders is fine keyed by
+   * index — warning about that would be crying wolf, which is worse than silence.
+   * And only for plain objects: a list of strings has no properties at all, so
+   * index-keying it is the only thing anyone could do. */
+  let keyMissReported = false;
+  const checkKeyShape = (item: unknown): void => {
+    if (keyMissReported || !keyDeclared) return;
+    if (item === null || typeof item !== 'object') return;
+    if (keyAttr in item) return;
+    keyMissReported = true;
+    warn(`ui: ui:key="${keyAttr}" — no item has that property, so rows fall back to their index`);
+  };
   const listRef = resolvePath(listPath, el); // capture while attached (reparenting gap: H2)
   const template = el.cloneNode(true) as Element;
   // rows are instances, not templates: drop the repeat family so a later
@@ -45,6 +65,7 @@ export function attachEach(el: Element): void {
     const keys = new Set<string | number>();
     const desired: Element[] = [];
     list.forEach((item: unknown, idx: number) => {
+      checkKeyShape(item);
       const key = (item as Record<string, unknown> | null)?.[keyAttr] ?? idx;
       // A key identifies a row, so two items sharing a key can only ever be one row.
       // That cannot be made to work — but it must not be silent: name the collision

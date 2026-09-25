@@ -133,6 +133,26 @@ test('check: repeat, model and key paths', () => {
   assert.deepEqual(checkHtml('t.html', `<ul ui:each="row in rows"></ul>`), []);
 });
 
+test('check: ui:key is judged on the value the runtime will actually read', () => {
+  // The runtime does `item[getAttribute('ui:key')]`. It does not trim, so
+  // `ui:key=" id "` looks up the property " id " — undefined — and every row falls
+  // back to its index. The checker used to trim before validating, so it accepted a
+  // value the runtime could not honour: a page that passed `ui check` and then
+  // warned in a console nobody was watching. The two halves disagreed about the
+  // same file, which is the one thing this pair of verifiers may never do.
+  assert.match(
+    one(checkHtml('t.html', `<ul ui:each="row in rows" ui:key=" id "></ul>`), /expected a property name/)!.message,
+    /ui:key=" id "/,
+  );
+  // A present-but-empty ui:key is not the default — it is an attribute that reads
+  // nothing from the item. `each.ts` falls back to "id" because '' is falsy, so the
+  // attribute silently does nothing at all: the same shape of no-op as a dotted path.
+  assert.match(
+    one(checkHtml('t.html', `<ul ui:each="row in rows" ui:key=""></ul>`), /is empty/)!.message,
+    /nothing is read from the item/,
+  );
+});
+
 test('check: verbs are validated against the closed catalog', () => {
   assert.match(one(checkHtml('t.html', `<div ui:fx="click: stpo n = 1"></div>`), /unknown verb "stpo"/)!.message, /unknown verb/);
   assert.match(one(checkHtml('t.html', `<div ui:fx="click: nav"></div>`), /nav needs a selector/)!.message, /nav needs a selector/);
@@ -351,6 +371,70 @@ test('cli: a path that does not exist is a usage error, not a clean pass', () =>
     const mixed = run(['check', 'ok.html', 'nope'], dir);
     assert.equal(mixed.code, 2);
     assert.match(mixed.err, /no such file or directory: "nope"/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('cli: a target that cannot be checked is a usage error, never a silent pass', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'uicheck-'));
+  try {
+    writeFileSync(join(dir, 'ok.html'), `<div ui:stack gap="2"></div>\n`);
+    writeFileSync(join(dir, 'README.md'), `# not html\n`);
+
+    // A named file that is not HTML used to be skipped in silence: `ui check
+    // README.md` printed "checked 0 files" and exited 0, which reads as a clean
+    // bill of health for README.md. Same false pass as a missing path.
+    const notHtml = run(['check', 'README.md'], dir);
+    assert.equal(notHtml.code, 2);
+    assert.match(notHtml.err, /not an HTML file: "README\.md"/);
+    assert.equal(notHtml.out, '', 'nothing was read, so nothing is reported');
+
+    // ...and so is finding nothing at all. A gate that goes green because it
+    // scanned no files goes green on the day the glob breaks.
+    const empty = mkdtempSync(join(tmpdir(), 'uicheck-empty-'));
+    try {
+      const nothing = run(['check'], empty);
+      assert.equal(nothing.code, 2);
+      assert.match(nothing.err, /no \.html files found in the current directory/);
+    } finally { rmSync(empty, { recursive: true, force: true }); }
+
+    // An empty path is not ".". `resolve('')` IS the cwd, so `ui check ""` used to
+    // scan the whole tree — a shell variable that expanded to nothing, most often.
+    const blank = run(['check', ''], dir);
+    assert.equal(blank.code, 2);
+    assert.match(blank.err, /empty path/);
+
+    // ...but a non-HTML file merely *sitting inside* a scanned directory is normal
+    // and stays ignored. Only a named one is an error.
+    const dirScan = run(['check', dir]);
+    assert.equal(dirScan.code, 0);
+    assert.match(dirScan.all, /checked 1 file: 0 errors, 0 warnings/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('cli: --json describes the findings it actually emitted', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'uicheck-'));
+  try {
+    writeFileSync(join(dir, 'a.html'), `<div class="a" class="b"></div><div ui:stak></div>\n`);
+    type Payload = { errors: number; warnings: number; suppressed: number; findings: Finding[] };
+
+    // One error and one warning. The counts are the verdict — the whole scan, the
+    // same numbers the human summary line prints — and `findings` is what was
+    // emitted. Those are different sets under `--quiet`, and the payload has to say
+    // so: it used to report `warnings: 1` beside a one-element findings array, an
+    // output that contradicted itself, which a machine-readable mode may not do.
+    const quiet = JSON.parse(run(['check', dir, '--json', '--quiet']).out) as Payload;
+    assert.equal(quiet.errors, 1);
+    assert.equal(quiet.warnings, 1, 'the verdict still counts the warning');
+    assert.equal(quiet.findings.length, 1, 'but only the error was emitted');
+    assert.equal(quiet.suppressed, 1, 'and the gap is named rather than left to arithmetic');
+    assert.equal(quiet.findings.length + quiet.suppressed, quiet.errors + quiet.warnings);
+
+    // and without --quiet nothing is hidden
+    const all = JSON.parse(run(['check', dir, '--json']).out) as Payload;
+    assert.equal(all.errors, 1);
+    assert.equal(all.warnings, 1);
+    assert.equal(all.findings.length, 2);
+    assert.equal(all.suppressed, 0);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 

@@ -75,15 +75,19 @@ t('motion: a below-the-fold reveal is hidden, then interpolates in when scrolled
     return new Promise(r => setTimeout(() => r(parseFloat(getComputedStyle(el).opacity)), 110));
   })()`);
   assert.ok(mid > 0.02 && mid < 0.98, `expected an in-flight opacity, got ${mid}`);
-
-  await p.waitFor(`getComputedStyle(document.getElementById('m-scroll')).opacity === '1'`);
   assert.equal(await p.eval<boolean>(`document.getElementById('m-scroll').classList.contains('ui-reveal-in')`), true);
 
-  // and the motion is real: three properties, half a second each, in the revealed state
+  // and the motion is real: three properties, half a second each, in the revealed
+  // state. Read *here*, mid-flight, because the transition is deliberately
+  // temporary — see the settle test below. Asserting it after the reveal finished
+  // would be asserting something that is by design no longer there.
   const dur = await p.eval<string>(`getComputedStyle(document.getElementById('m-scroll')).transitionDuration`);
   assert.ok(dur.split(',').every(d => d.trim() === '0.5s'), `every transitioned property is 0.5s, got ${dur}`);
   const prop = await p.eval<string>(`getComputedStyle(document.getElementById('m-scroll')).transitionProperty`);
   for (const k of ['opacity', 'translate', 'scale']) assert.ok(prop.includes(k), `${k} is transitioned, got ${prop}`);
+
+  await p.waitFor(`getComputedStyle(document.getElementById('m-scroll')).opacity === '1'`);
+  assert.equal(await p.eval<boolean>(`document.getElementById('m-scroll').classList.contains('ui-reveal-in')`), true);
 
   // one-shot: scrolling back up must not replay it
   await p.eval(`window.scrollTo(0, 0)`);
@@ -143,6 +147,23 @@ t('motion: a viewport-anchored reveal still becomes visible', async () => {
   await p.close();
 });
 
+t('motion: the reveal hands the element back when the motion is over', async () => {
+  const p = await open();
+  // `.ui-reveal-in` carries a `transition` shorthand, and a shorthand resets *every*
+  // transition property on the element — including the page's own. So while it is
+  // applied, `#m-own`'s `transition: background-color .2s linear` is simply gone.
+  // The fix is that it is temporary: once the motion ends the runtime adds
+  // `.ui-reveal-settled`, the rule stops matching, and the page's transition is back.
+  // Without it a revealed `.cta` button would never transition its background again
+  // for the life of the page — a regression on exactly the pages ui:reveal is for.
+  await p.waitFor(`document.getElementById('m-own').classList.contains('ui-reveal-settled')`);
+  assert.equal(await p.eval<boolean>(`document.getElementById('m-own').classList.contains('ui-reveal-in')`), true, 'still revealed');
+  assert.equal(await p.eval<string>(`getComputedStyle(document.getElementById('m-own')).transitionProperty`), 'background-color', 'the page\'s own transition is back');
+  assert.equal(await p.eval<string>(`getComputedStyle(document.getElementById('m-own')).transitionDuration`), '0.2s');
+  assert.equal(await opacity(p, 'm-own'), '1', 'and settling changed nothing on screen');
+  await p.close();
+});
+
 t('motion: from= picks the axis the element travels on', async () => {
   const p = await open();
   // before any scrolling: each one is hidden and offset on its own axis
@@ -191,7 +212,7 @@ t('motion: prefers-reduced-motion: reduce means nothing is ever hidden', async (
   // The guarantee: the content is present at full opacity without any scrolling.
   // A reader who asked for less motion gets the page — not a fade, and above all
   // not a page whose below-the-fold half is invisible until they scroll.
-  for (const id of ['m-load', 'm-scroll', 'm-up', 'm-zoom', 'm-late']) {
+  for (const id of ['m-load', 'm-scroll', 'm-up', 'm-zoom', 'm-late', 'm-own']) {
     assert.equal(await opacity(p, id), '1', `${id} must not be hidden under reduced motion`);
   }
   await p.close();
@@ -209,7 +230,7 @@ t('motion: a page whose runtime never loads is not left blank', async () => {
 
   assert.equal(await p.eval<boolean>(`window.__uiReady === true`), false, 'the runtime really is absent');
   assert.equal(await p.eval<boolean>(`document.documentElement.classList.contains('ui-reveal-ready')`), false, 'nothing armed the hidden state');
-  for (const id of ['m-load', 'm-scroll', 'm-up', 'm-late']) {
+  for (const id of ['m-load', 'm-scroll', 'm-up', 'm-late', 'm-own']) {
     assert.equal(await opacity(p, id), '1', `${id} must be visible with no runtime at all`);
   }
   await p.close();

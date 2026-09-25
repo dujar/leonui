@@ -159,6 +159,28 @@ export const ENHANCERS: Record<string, Enhancer> = {
       // instead of moving — which is invisible in a class-name test and obvious here.
       void (el as HTMLElement).offsetHeight;
       el.classList.add('ui-reveal-in');
+      // `.ui-reveal-in` carries a `transition` shorthand, and a shorthand resets
+      // every transition property on the element — including the page's own. A
+      // `.cta` with `transition: background .2s` would stop transitioning its
+      // background the moment it revealed, and keep not transitioning, because the
+      // rule kept matching. So the class is temporary: once the motion is over the
+      // element is *settled*, the rule stops matching, and the page's transitions
+      // come back. Nothing moves — by then every property is at its final value.
+      //
+      // How long that is comes from the stylesheet, not from a constant here, so
+      // the two cannot drift apart. Reading it costs one style recalc per revealed
+      // element, which is the same order as the layout above and happens once.
+      const cs = getComputedStyle(el);
+      const secs = parseFloat(cs.transitionDuration) || 0;
+      const delay = parseFloat(cs.transitionDelay) || 0;
+      const settle = (): void => el.classList.add('ui-reveal-settled');
+      // a timeout, not `transitionend`: an app's own shorter transition on the same
+      // element would fire that event early and settle us mid-flight, which is the
+      // pop this whole arrangement exists to avoid. Worst case here is a background
+      // tab throttling the timer, which leaves the element visible and merely
+      // keeps our transition on it a moment longer.
+      if (secs > 0) setTimeout(settle, (secs + delay) * 1000 + 60);
+      else settle();
     };
     if (trigger === 'load' || typeof IntersectionObserver === 'undefined') {
       requestAnimationFrame(show);

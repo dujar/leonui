@@ -257,10 +257,19 @@ export function requirementProblems(
  *
  * Warnings only, and the attribute falls back to its default — the same failure
  * mode as a rejected enhancer prop, and deliberately *not* the "skip outright"
- * one: a `ui:key` with a bad value still wants a keyed list, just the default key. */
+ * one: a `ui:key` with a bad value still wants a keyed list, just the default key.
+ *
+ * An *absent* attribute is the default and says nothing. A *present and empty* one
+ * is an author who wrote the attribute and left it blank, so the runtime falls
+ * back to a default they did not ask for — `ui:key=""` looks like a key, keys
+ * nothing, and every row quietly falls back to its index. That is the same silent
+ * loss the pattern check above exists to prevent, so it is reported too. */
 export function coreAttrProblems(attr: string, value: string | null): string[] {
   const ps = CORE_PROPS[attr];
-  if (!ps || value == null || value === '') return [];
+  if (!ps || value == null) return [];
+  if (value === '') {
+    return [`ui: ${attr}="" is empty — nothing is read from the item, so this attribute has no effect`];
+  }
   if (ps.pattern && !ps.pattern.test(value)) {
     return [`ui: ${attr}="${value}" — expected ${ps.hint ?? 'a different format'} (using the default)`];
   }

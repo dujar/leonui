@@ -319,10 +319,14 @@ export function checkHtml(file: string, src: string): Finding[] {
     // ui:key is a property NAME on the item — `each.ts` does `item[keyAttr]`. It
     // used to be validated as a signal path, which is precisely how `ui:key="row.id"`
     // passed this check and then keyed every row by its index, silently.
+    // The value is passed RAW, not trimmed: the runtime reads `getAttribute` and
+    // does `item[" id "]`, so `ui:key=" id "` really does fall back to the index.
+    // Trimming here made the checker accept a value the runtime could not honour —
+    // a page that passed `ui check` and then warned in a console nobody watches.
     const key = get('ui:key');
     if (key != null) {
       const off = seen.get('ui:key')!.offset;
-      for (const msg of coreAttrProblems('ui:key', key.trim())) at(off, 'error', msg);
+      for (const msg of coreAttrProblems('ui:key', key)) at(off, 'error', msg);
     }
 
     /* 6b. ui:use — both forms need a "#template-id". Without one the local form

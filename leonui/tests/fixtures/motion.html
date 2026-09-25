@@ -5,12 +5,17 @@
   body { max-width: none; margin: 0; }
   .pad { height: 1400px; }
   .probe { height: 40px; background: var(--muted); }
+  /* The page's own transition, on an element that also reveals. A `transition`
+     shorthand resets every transition property on the element, so the reveal's
+     has to be handed back when the motion is over or this one is gone for good. */
+  .own-transition { transition: background-color .2s linear; }
 </style>
 </head>
 <body>
   <!-- above the fold: these animate on load, no scrolling involved -->
   <section id="m-load"    class="probe" ui:reveal trigger="load" from="up"></section>
   <section id="m-stagger" class="probe" ui:reveal trigger="load" stagger="3"></section>
+  <section id="m-own"     class="probe own-transition" ui:reveal trigger="load"></section>
 
   <!-- A list. `stagger` on a row is a *step*, and a step is meaningless without a
        position — so the delay has to come from the row's index, not the attribute.

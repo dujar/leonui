@@ -192,8 +192,17 @@
     .ui-reveal-ready [ui\:reveal][data-reveal-from="left"]:not(.ui-reveal-in) { translate: -18px 0; }
     .ui-reveal-ready [ui\:reveal][data-reveal-from="right"]:not(.ui-reveal-in) { translate: 18px 0; }
     .ui-reveal-ready [ui\:reveal][data-reveal-from="zoom"]:not(.ui-reveal-in) { scale: .94; }
-    .ui-reveal-ready [ui\:reveal].ui-reveal-in {
-      opacity: 1;
+    .ui-reveal-ready [ui\:reveal].ui-reveal-in { opacity: 1; }
+    /* ...and it is scoped to the *unsettled* revealed state, which is the whole
+     * point of `.ui-reveal-settled`. A `transition` shorthand resets every
+     * transition property on the element, so a `.cta` that declares
+     * `transition: background .2s` stopped transitioning its background the moment
+     * it revealed — and kept not transitioning, because the rule kept matching.
+     * That is a real regression on exactly the pages this feature is for. The
+     * runtime adds `.ui-reveal-settled` when the motion is over; this rule stops
+     * matching and the page's own transitions come back. Nothing moves, because by
+     * then every property is already at its final value. */
+    .ui-reveal-ready [ui\:reveal].ui-reveal-in:not(.ui-reveal-settled) {
       transition: opacity .5s ease-out, translate .5s ease-out, scale .5s ease-out;
       transition-delay: var(--ui-reveal-delay, 0ms);
     }
