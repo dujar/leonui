@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inbox — leonspace ui integration</title><link rel="stylesheet" href="/src/ui.css"></head>
+<body ui:state="query: ''; filter: 'all'; tasks: GET /api/tasks">
+
+  <header class="ui-row" gap="4">
+    <h1 class="ui-t-title" style="flex:1">Inbox</h1>
+    <span class="ui-badge ui-b-brand" id="task-count" ui:bind="text: tasks.status == 'ok' ? tasks.data.length + ' tasks' : '…'"></span>
+  </header>
+
+  <div ui:card style="margin-bottom:12px">
+    <div ui:row gap="3">
+      <input id="add-input" ui:input type="text" ui:model="query" placeholder="Add a task…" style="flex:1">
+      <button id="add-btn" ui:button variant="primary"
+              ui:bind="disabled: query == '' || tasks.status != 'ok'"
+              ui:fx="click: call POST /api/tasks with { title: query }
+                              optimistic: set tasks.data = [ { id: 0 - tasks.data.length, title: query, done: false }, ...tasks.data ];
+                     refetch tasks">Add</button>
+    </div>
+  </div>
+
+  <div ui:row gap="2" style="margin-bottom:8px" role="group" aria-label="filter">
+    <button id="f-all"  ui:button ui:bind-class="filter == 'all'  ? 'ui-btn ui-btn-primary' : 'ui-btn'" ui:fx="click: set filter = 'all'">All</button>
+    <button id="f-open" ui:button ui:bind-class="filter == 'open' ? 'ui-btn ui-btn-primary' : 'ui-btn'" ui:fx="click: set filter = 'open'">Open</button>
+    <button id="f-done" ui:button ui:bind-class="filter == 'done' ? 'ui-btn ui-btn-primary' : 'ui-btn'" ui:fx="click: set filter = 'done'">Done</button>
+  </div>
+
+  <p id="tasks-loading" class="ui-state" ui:bind-hidden="tasks.status != 'loading'">loading…</p>
+  <p id="tasks-error" class="ui-state ui-state-error" ui:bind-hidden="tasks.status != 'error'" ui:bind-text="'error: ' + tasks.data"></p>
+
+  <div ui:card style="padding:8px 16px">
+    <ul class="ui-list" id="task-list">
+      <li ui:each="task in tasks.data" ui:key="id" class="ui-list-item"
+          ui:bind-hidden="(filter == 'open' && task.done) || (filter == 'done' && !task.done) || (query != '' && !contains(task.title, query))"
+          ui:bind-class="task.done ? 'ui-list-item done' : 'ui-list-item'">
+        <input type="checkbox" class="ui-check" ui:bind-checked="task.done" aria-label="toggle"
+               ui:fx="change: call PATCH /api/tasks/{task.id} with { done: !task.done }
+                               optimistic: set task.done = !task.done;
+                      onfail: toast 'Sync failed — rolled back'">
+        <span class="ui-list-title" style="flex:1" ui:bind="text: task.title"></span>
+        <button class="ui-btn ui-btn-icon" aria-label="delete"
+                ui:fx="click: call DELETE /api/tasks/{task.id}
+                                optimistic: set tasks.data = without(tasks.data, task);
+                       onfail: toast 'Delete failed'"><svg ui:icon name="x"></svg></button>
+      </li>
+    </ul>
+    <p id="list-empty" class="ui-state" ui:bind-hidden="tasks.status != 'ok' || tasks.data.length != 0">nothing here — add a task</p>
+  </div>
+
+<script src="/src/ui.js"></script>
+</body>
+</html>

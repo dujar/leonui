@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Navigation — leonspace ui</title><link rel="stylesheet" href="/src/ui.css"></head>
+<body ui:state="where: 'screen-1'">
+  <h1 class="ui-t-title">Navigation</h1>
+
+  <h2 class="ui-t-subtitle">Tabs — aria + arrow keys</h2>
+  <div id="tabs1" ui:tabs>
+    <div role="tablist">
+      <button role="tab" id="tab-a" aria-controls="panel-a" aria-selected="true">Alpha</button>
+      <button role="tab" id="tab-b" aria-controls="panel-b" aria-selected="false">Beta</button>
+      <button role="tab" id="tab-c" aria-controls="panel-c" aria-selected="false">Gamma</button>
+    </div>
+    <section id="panel-a" role="tabpanel">panel alpha</section>
+    <section id="panel-b" role="tabpanel" hidden>panel beta</section>
+    <section id="panel-c" role="tabpanel" hidden>panel gamma</section>
+  </div>
+
+  <h2 class="ui-t-subtitle">Accordion — &lt;details name&gt; (exclusive, platform)</h2>
+  <div ui:stack gap="3">
+    <details class="ui-acc" name="faq" id="acc1" open>
+      <summary>What is this?</summary><div class="ui-acc-body">Declarative UI over platform primitives.</div>
+    </details>
+    <details class="ui-acc" name="faq" id="acc2">
+      <summary>Why attributes?</summary><div class="ui-acc-body">Locality of behavior, greppable by agents.</div>
+    </details>
+    <details class="ui-acc" name="faq" id="acc3">
+      <summary>Where is the CSS?</summary><div class="ui-acc-body">One shipped stylesheet, tokens override.</div>
+    </details>
+  </div>
+
+  <h2 class="ui-t-subtitle">Screens — nav verb + view transitions</h2>
+  <div ui:row gap="3">
+    <button id="nav-to-2" ui:button ui:transition ui:fx="click: nav '#screen-2'; set where = 'screen-2'">Go to 2</button>
+    <button id="nav-to-1" ui:button ui:transition ui:fx="click: nav '#screen-1'; set where = 'screen-1'">Go to 1</button>
+  </div>
+  <section data-screen id="screen-1" ui:card><p>screen one</p></section>
+  <section data-screen id="screen-2" hidden ui:card><p>screen two</p></section>
+  <p id="echo-where" ui:bind="text: 'at ' + where"></p>
+
+<script type="module" src="/dist/leonxstream.js"></script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Layout — leonspace ui</title><link rel="stylesheet" href="/src/ui.css"></head>
+<body>
+  <h1 class="ui-t-title">Layout</h1>
+
+  <h2 class="ui-t-subtitle">Stack — gap scale 1..8</h2>
+  <div id="stack-g2" ui:stack gap="2" class="probe">
+    <span>gap-2</span><span>items</span>
+  </div>
+  <div id="stack-g6" ui:stack gap="6" class="probe">
+    <span>gap-6</span><span>items</span>
+  </div>
+  <div id="stack-center" ui:stack gap="3" center style="height:120px">
+    <span>centered</span>
+  </div>
+
+  <hr class="ui-divider" id="div1">
+
+  <h2 class="ui-t-subtitle">Row — align, wrap, gap</h2>
+  <div id="row-between" ui:row gap="4" align="between">
+    <span>left</span><span>right</span>
+  </div>
+  <div id="row-wrap" ui:row gap="3" wrap>
+    <span class="ui-badge">one</span><span class="ui-badge">two</span><span class="ui-badge">three</span><span class="ui-badge">four</span>
+  </div>
+
+  <h2 class="ui-t-subtitle">Card — variants</h2>
+  <div ui:stack gap="4">
+    <div id="card-default" ui:card>default card</div>
+    <div id="card-inset" ui:card variant="inset">inset card</div>
+    <div id="card-outline" ui:card variant="outline">outline card</div>
+  </div>
+
+  <h2 class="ui-t-subtitle">Spacer</h2>
+  <div ui:stack>
+    <span>above</span>
+    <div id="spacer1" ui:spacer size="7"></div>
+    <span>below</span>
+  </div>
+
+  <h2 class="ui-t-subtitle">Divider</h2>
+  <hr class="ui-divider" id="div2">
+
+<script type="module" src="/dist/leonxstream.js"></script>
+</body>
+</html>

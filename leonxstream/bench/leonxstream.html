@@ -1,0 +1,33 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>bench — leonxstream</title>
+<style>.row{display:flex}.label{flex:1}.row.done .label{text-decoration:line-through}</style></head>
+<body ui:state="rows: []">
+<div id="app"><ul id="bench-list">
+  <li ui:each="r in rows" ui:key="id" ui:bind-class="r.done ? 'row done' : 'row'">
+    <span class="label" ui:bind="text: r.label"></span>
+  </li>
+</ul></div>
+<script type="module" src="/dist/leonxstream.js"></script>
+<script type="module">
+  const settle = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  window.__bench = {
+    async mount() {},
+    async create(n) {
+      const cur = window.__ui.readPath('rows', document.body) ?? [];
+      const start = cur.length;
+      const made = Array.from({ length: n }, (_, i) => ({ id: start + i + 1, label: 'item #' + (start + i + 1), done: false }));
+      window.__ui.setPath('rows', [...cur, ...made], document.body);
+    },
+    async update() {
+      const cur = window.__ui.readPath('rows', document.body);
+      window.__ui.setPath('rows', cur.map(r => (r.id % 10 === 0 ? { ...r, done: !r.done } : r)), document.body);
+    },
+    async remove() { window.__ui.setPath('rows', [], document.body); },
+    async replace() { await this.remove(); await this.create(1000); },
+    rows: () => document.querySelectorAll('#bench-list li.row').length,
+    doneCount: () => document.querySelectorAll('#bench-list li.row.done').length,
+  };
+  await window.__bench.mount();
+  await settle();
+  window.__benchReadyAt = performance.now();
+</script>
+</body></html>

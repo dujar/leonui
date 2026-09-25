@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Content — leonspace ui</title><link rel="stylesheet" href="/src/ui.css"></head>
+<body ui:state="featured: true">
+  <h1 class="ui-t-title">Content</h1>
+
+  <h2 class="ui-t-subtitle">Text variants</h2>
+  <div ui:stack gap="3">
+    <p id="t-title" class="ui-t-title" ui:text variant="title">Title</p>
+    <p id="t-sub" ui:text variant="subtitle">Subtitle</p>
+    <p id="t-muted" ui:text variant="muted">Muted helper text</p>
+    <p id="t-strong" ui:text variant="strong">Strong body</p>
+    <code id="t-code" ui:text variant="code">npm install leonspace-ui</code>
+    <p id="t-dynamic" ui:text variant="strong" ui:bind="text: featured ? 'featured is on' : 'featured is off'"></p>
+  </div>
+
+  <h2 class="ui-t-subtitle">Badge variants</h2>
+  <div ui:row gap="3" wrap>
+    <span id="b-neutral" ui:badge>neutral</span>
+    <span id="b-brand" ui:badge variant="brand">brand</span>
+    <span id="b-danger" ui:badge variant="danger">danger</span>
+    <span id="b-warn" ui:badge variant="warn">warn</span>
+    <span id="b-success" ui:badge variant="success">success</span>
+    <span id="b-dynamic" ui:badge ui:bind-class="featured ? 'ui-badge ui-b-brand' : 'ui-badge'" ui:bind="text: featured ? 'on' : 'off'"></span>
+  </div>
+
+  <h2 class="ui-t-subtitle">Icons</h2>
+  <div ui:row gap="4">
+    <svg id="i-check" ui:icon name="check"></svg>
+    <svg id="i-x" ui:icon name="x"></svg>
+    <svg id="i-plus" ui:icon name="plus"></svg>
+    <svg id="i-search" ui:icon name="search"></svg>
+    <svg id="i-chevron" ui:icon name="chevron-down"></svg>
+  </div>
+
+  <h2 class="ui-t-subtitle">Image — loaded + broken fallback</h2>
+  <div ui:stack gap="4">
+    <img id="img-ok" ui:image ratio="3/1"
+         src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='100'%3E%3Crect width='300' height='100' fill='%232f6f4f'/%3E%3C/svg%3E"
+         alt="ok">
+    <img id="img-broken" ui:image ratio="3/1" src="/nope-missing.png" alt="broken">
+  </div>
+
+<script type="module" src="/dist/leonxstream.js"></script>
+</body>
+</html>

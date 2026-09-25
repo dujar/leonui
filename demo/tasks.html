@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>leonspace · ui runtime — design artifact</title>
+<style>
+  /* ---- design tokens: framework opinions, compiled to plain CSS ---- */
+  :root {
+    color-scheme: light dark;
+    --brand: light-dark(#2f6f4f, #7fd6a4);
+    --bg:    light-dark(#faf9f6, #14161a);
+    --card:  light-dark(#ffffff, #1e2126);
+    --ink:   light-dark(#1c1e21, #e8eaed);
+    --muted: light-dark(#6b7280, #9aa0a6);
+    --line:  light-dark(#e5e2da, #2a2e35);
+    --danger: light-dark(#b3261e, #f2b8b5);
+    --r: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; max-width: 34rem; padding: 2rem 1rem 4rem;
+    font: 16px/1.5 system-ui, sans-serif;
+    background: var(--bg); color: var(--ink);
+  }
+  h1 { font-size: 1.4rem; margin: 0 0 .25rem; }
+  .sub { color: var(--muted); font-size: .85rem; margin: 0 0 1.25rem; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 1rem; }
+  .row { display: flex; align-items: center; gap: .75rem; padding: .6rem .25rem; border-bottom: 1px solid var(--line); }
+  .row:last-child { border-bottom: 0; }
+  .row.done .title { text-decoration: line-through; color: var(--muted); }
+  .title { flex: 1; }
+  button { font: inherit; border: 1px solid var(--line); background: transparent; color: var(--ink);
+           border-radius: 8px; padding: .35rem .8rem; cursor: pointer; }
+  button:disabled { opacity: .4; cursor: default; }
+  .primary { background: var(--brand); border-color: var(--brand); color: var(--bg); font-weight: 600; }
+  .seg { border-radius: 999px; padding: .25rem .8rem; color: var(--muted); }
+  .seg.on { background: var(--brand); border-color: var(--brand); color: var(--bg); font-weight: 600; }
+  .warn.on { border-color: var(--danger); color: var(--danger); font-weight: 600; }
+  /* platform-native form controls: no JS involved */
+  input[type="text"] { field-sizing: content; min-width: 12ch; max-width: 100%;
+    font: inherit; padding: .35rem .6rem; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--bg); color: var(--ink); }
+  input[type="checkbox"] { width: 1.05rem; height: 1.05rem; accent-color: var(--brand); }
+  [hidden] { display: none !important; }
+  /* popover menu + anchor positioning: platform-native tethering/flip, zero JS */
+  .icon { border: 0; font-size: 1.1rem; color: var(--muted); anchor-name: --menuAnchor; }
+  [popover] {
+    position-anchor: --menuAnchor; inset: auto;
+    position-area: block-end span-inline-end; position-try-fallbacks: flip-block, flip-inline;
+    margin: 4px; border: 1px solid var(--line); border-radius: var(--r); padding: .3rem;
+    background: var(--card); color: var(--ink); box-shadow: 0 8px 24px rgb(0 0 0 / .18);
+    opacity: 0; transform: translateY(4px);
+    transition: opacity .15s, transform .15s, display .15s allow-discrete, overlay .15s allow-discrete;
+  }
+  [popover]:popover-open { opacity: 1; transform: none; }
+  @starting-style { [popover]:popover-open { opacity: 0; transform: translateY(4px); } }
+  .item { display: block; width: 100%; text-align: left; border: 0; padding: .4rem .7rem; }
+  .item:hover { background: var(--bg); }
+  /* toast channel */
+  #toasts { position: fixed; bottom: 1rem; left: 50%; translate: -50% 0; display: grid; gap: .5rem; z-index: 9; }
+  .toast { background: var(--ink); color: var(--bg); border-radius: 999px; padding: .45rem 1rem;
+           font-size: .85rem; box-shadow: 0 6px 18px rgb(0 0 0 / .25); }
+  .toast.fail { background: var(--danger); color: #fff; }
+  .counts { color: var(--muted); font-size: .85rem; }
+  header { display: flex; align-items: center; gap: .5rem; margin-bottom: 1rem; }
+  header h1 { flex: 1; margin: 0; }
+</style>
+</head>
+<body ui:state="filter: 'all'; flaky: false; nextId: 100; query: ''; tasks: [ { id: 1, title: 'Set up leonspace workspace', done: true }, { id: 2, title: 'Write the interaction-tier spec', done: false }, { id: 3, title: 'Run the verification-wedge tests', done: false } ]">
+
+  <header>
+    <h1>Tasks</h1>
+    <span class="counts"><b ui:bind="text: tasks.length"></b> tasks</span>
+    <!-- popover opens via the platform (zero framework code); its item runs a framework verb -->
+    <button class="icon" popovertarget="menu" aria-label="Menu">⋯</button>
+    <div popover id="menu">
+      <button class="item" ui:fx="click: toast 'ui runtime — design artifact v0'">About this demo</button>
+      <button class="item" ui:fx="click: toggle flaky">Toggle flaky flag</button>
+    </div>
+  </header>
+
+  <p class="sub">Prototype-runtime design artifact — HTML + four attributes, one ~200-line runtime.</p>
+
+  <!-- header controls: two-way model bind + closed fx verbs -->
+  <div class="card" style="display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin-bottom:.75rem;">
+    <input type="text" placeholder="Add a task…" ui:model="query" ui:fx="click: toast 'two-way bind: value IS the query signal'">
+    <button class="primary"
+            ui:bind="disabled: query == ''"
+            ui:fx="click: set tasks = [ { id: nextId, title: query, done: false }, ...tasks ]; set nextId = nextId + 1; set query = ''">Add</button>
+    <button class="warn"
+            ui:bind="class: flaky ? 'warn on' : 'warn'"
+            ui:fx="click: toggle flaky; toast flaky ? 'Offline mode — writes will fail and roll back' : 'Back online'">Simulate offline</button>
+  </div>
+
+  <!-- filter segments: set verb + view transitions (ui:transition wraps the handler) -->
+  <div style="display:flex; gap:.4rem; margin-bottom:.5rem;">
+    <button class="seg on" ui:transition ui:bind="class: filter == 'all' ? 'seg on' : 'seg'"  ui:fx="click: set filter = 'all'">All</button>
+    <button class="seg"    ui:transition ui:bind="class: filter == 'open' ? 'seg on' : 'seg'" ui:fx="click: set filter = 'open'">Open</button>
+    <button class="seg"    ui:transition ui:bind="class: filter == 'done' ? 'seg on' : 'seg'" ui:fx="click: set filter = 'done'">Done</button>
+  </div>
+
+  <!-- the list: ui:each clones this <li> per item, keyed; hidden is a fine-grained bind, not a re-render -->
+  <div class="card" style="padding:.4rem 1rem;">
+    <ul style="list-style:none; margin:0; padding:0;">
+      <li class="row"
+          ui:each="task in tasks" ui:key="id"
+          ui:bind="hidden: (filter == 'open' && task.done) || (filter == 'done' && !task.done) || (query != '' && !contains(task.title, query))"
+          ui:bind-class="task.done ? 'row done' : 'row'">
+        <input type="checkbox" ui:bind-checked="task.done"
+               ui:fx="change: call PATCH /api/tasks/{task.id} optimistic: set task.done = !task.done; onfail: toast 'Sync failed — change rolled back'">
+        <span class="title" ui:bind="text: task.title"></span>
+        <button class="icon" aria-label="Delete"
+                ui:fx="click: call DELETE /api/tasks/{task.id} optimistic: set tasks = without(tasks, task); onfail: toast 'Delete failed — rolled back'">✕</button>
+      </li>
+    </ul>
+  </div>
+
+  <div id="toasts"></div>
+
+<script>
+/* ui runtime — ILLUSTRATIVE CORE (~200 lines). Design artifact, not the product.
+   Gated behind the Phase 0/1 tests per the plan; known gaps are the judge's H2 list:
+   no disposal of subscriber sets on removed rows, no reparenting semantics, naive top-level
+   `;`/`:` splitting in attribute grammars, shadow-DOM crossing not implemented. */
+(() => {
+  'use strict';
+
+  /* ---------- whitelisted pure operators (the ONLY callable things in expressions) ---------- */
+  const BUILTINS = {
+    without: (arr, item) => arr.filter(x => x !== item),
+    contains: (str, sub) => String(str ?? '').toLowerCase().includes(String(sub ?? '').toLowerCase()),
+  };
+
+  /* ---------- signals ---------- */
+  let CUR = null; // current dependency-tracking set
+  const sig = v => {
+    const subs = new Set();
+    return {
+      get value() { if (CUR) CUR.add(subs); return v; },
+      set value(nv) { if (nv === v) return; v = nv; for (const f of [...subs]) f(); },
+    };
+  };
+  const scopes = new WeakMap(); // element -> { signals: Map(name -> sig) }
+
+  function findScope(el, name) {
+    for (let n = el; n; n = n.parentElement) {
+      const s = scopes.get(n);
+      if (s && s.signals.has(name)) return { sig: s.signals.get(name) };
+    }
+    return null;
+  }
+  const resolvePath = (path, el) => {
+    const segs = path.split('.');
+    const f = findScope(el, segs[0]);
+    if (!f) throw new Error('ui: undeclared signal "' + segs[0] + '"');
+    return { sig: f.sig, segs: segs.slice(1) };
+  };
+  const readPath = (path, el) => {
+    const { sig, segs } = resolvePath(path, el);
+    let v = sig.value;
+    for (const s of segs) v = v?.[s];
+    return v;
+  };
+  function setPath(path, val, el) { // immutable replacement all the way down
+    const { sig, segs } = resolvePath(path, el);
+    if (!segs.length) { sig.value = val; return; }
+    const copy = o => Array.isArray(o) ? [...o] : { ...o };
+    const root = copy(sig.value);
+    let cur = root;
+    for (let k = 0; k < segs.length - 1; k++) { cur[segs[k]] = copy(cur[segs[k]]); cur = cur[segs[k]]; }
+    cur[segs[segs.length - 1]] = val;
+    sig.value = root;
+  }
+  const track = fn => { // run fn with dependency tracking, subscribe it to what it read
+    const prev = CUR, subs = CUR = new Set();
+    try { fn(); } finally { CUR = prev; for (const s of subs) s.add(fn); }
+  };
+
+  /* ---------- expression parser: whitelist AST (no eval, ever) ---------- */
+  const astCache = new Map();
+  function parse(src) {
+    if (astCache.has(src)) return astCache.get(src);
+    let i = 0;
+    const ws = () => { while (i < src.length && /\s/.test(src[i])) i++; };
+    const lit = re => { ws(); const m = re.exec(src.slice(i)); if (!m) return null; i += m[0].length; return m; };
+    function primary() {
+      ws();
+      const c = src[i];
+      if (c === "'") { const m = lit(/'([^']*)'/); return { t: 'str', v: m[1] }; }
+      if (c === '(') { i++; const e = ternary(); ws(); if (src[i] !== ')') throw 'expected )'; i++; return e; }
+      if (c === '[') { i++; const items = []; ws();
+        if (src[i] !== ']') { items.push(element()); while (true) { ws(); if (src[i] === ',') { i++; ws(); if (src[i] === ']') break; items.push(element()); } else break; } }
+        ws(); i++; return { t: 'arr', items }; }
+      if (c === '{') { i++; const pairs = []; ws();
+        if (src[i] !== '}') { pairs.push(pair()); while (true) { ws(); if (src[i] === ',') { i++; ws(); if (src[i] === '}') break; pairs.push(pair()); } else break; } }
+        ws(); i++; return { t: 'obj', pairs }; }
+      if (/[0-9]/.test(c)) { const m = lit(/[0-9.]+/); return { t: 'num', v: Number(m[0]) }; }
+      if (/[A-Za-z_$]/.test(c)) {
+        const m = lit(/[A-Za-z_$][\w$]*/); const name = m[0];
+        ws();
+        if (src[i] === '(') { // call — allowed only for whitelisted pure operators
+          i++; const args = []; ws();
+          if (src[i] !== ')') { args.push(ternary()); while (true) { ws(); if (src[i] === ',') { i++; args.push(ternary()); } else break; } }
+          ws(); i++; return { t: 'call', name, args };
+        }
+        if (name === 'true') return { t: 'bool', v: true };
+        if (name === 'false') return { t: 'bool', v: false };
+        return { t: 'id', v: name };
+      }
+      throw new Error('ui: unexpected "' + c + '" in expression');
+    }
+    function pair() { ws(); const m = lit(/[A-Za-z_$][\w$]*/); ws(); if (src[i] !== ':') throw 'expected :'; i++; return { key: m[0], e: ternary() }; }
+    function element() { ws(); if (src.slice(i, i + 3) === '...') { i += 3; return { t: 'spread', e: ternary() }; } return ternary(); }
+    function postfix() { let e = primary(); while (true) { ws(); if (src[i] === '.') { i++; const m = lit(/[\w$]+/); e = { t: 'dot', e, name: m[0] }; } else break; } return e; }
+    function unary() { ws(); if (src[i] === '!') { i++; return { t: 'not', e: unary() }; } return postfix(); }
+    function mul() { let e = unary(); while (true) { ws(); if (src[i] === '*') { i++; e = { t: 'mul', a: e, b: unary() }; } else break; } return e; }
+    function add() { let e = mul(); while (true) { ws(); if (src[i] === '+') { i++; e = { t: 'add', a: e, b: mul() }; } else break; } return e; }
+    function eq() { let e = add(); while (true) { ws(); const two = src.slice(i, i + 2);
+      if (two === '==' || two === '!=') { i += 2; e = { t: two === '==' ? 'eq' : 'ne', a: e, b: add() }; } else break; } return e; }
+    function and() { let e = eq(); while (true) { ws(); if (src.slice(i, i + 2) === '&&') { i += 2; e = { t: 'and', a: e, b: eq() }; } else break; } return e; }
+    function or() { let e = and(); while (true) { ws(); if (src.slice(i, i + 2) === '||') { i += 2; e = { t: 'or', a: e, b: and() }; } else break; } return e; }
+    function ternary() { const e = or(); ws(); if (src[i] === '?') { i++; const a = ternary(); ws(); if (src[i] !== ':') throw 'expected :'; i++; return { t: 'cond', c: e, a, b: ternary() }; } return e; }
+    const ast = ternary(); ws();
+    if (i < src.length) throw new Error('ui: trailing input "' + src.slice(i) + '"');
+    astCache.set(src, ast);
+    return ast;
+  }
+  function ev(n, el) {
+    switch (n.t) {
+      case 'str': case 'num': case 'bool': return n.v;
+      case 'id': { const f = findScope(el, n.v); if (!f) throw new Error('ui: undeclared signal "' + n.v + '"'); return f.sig.value; }
+      case 'dot': { const o = ev(n.e, el); if (n.name === 'length') return o?.length; return o?.[n.name]; }
+      case 'not': return !ev(n.e, el);
+      case 'add': return ev(n.a, el) + ev(n.b, el);
+      case 'mul': return ev(n.a, el) * ev(n.b, el);
+      case 'eq': return ev(n.a, el) === ev(n.b, el);
+      case 'ne': return ev(n.a, el) !== ev(n.b, el);
+      case 'and': { const a = ev(n.a, el); return a ? ev(n.b, el) : a; }
+      case 'or':  { const a = ev(n.a, el); return a ? a : ev(n.b, el); }
+      case 'cond': return ev(n.c, el) ? ev(n.a, el) : ev(n.b, el);
+      case 'arr': { const out = []; for (const it of n.items) { if (it.t === 'spread') out.push(...ev(it.e, el)); else out.push(ev(it, el)); } return out; }
+      case 'obj': { const o = {}; for (const p of n.pairs) o[p.key] = ev(p.e, el); return o; }
+      case 'call': { const fn = BUILTINS[n.name]; if (!fn) throw new Error('ui: function not allowed: ' + n.name); return fn(...n.args.map(a => ev(a, el))); }
+    }
+  }
+  const safeEval = (src, el) => ev(parse(src), el);
+
+  /* ---------- state (ui:state="name: value; ...") ---------- */
+  function coerce(v) {
+    if (v === 'true') return true; if (v === 'false') return false;
+    if (/^-?[\d.]+$/.test(v)) return Number(v);
+    if (/^'.*'$/.test(v)) return v.slice(1, -1);
+    if (/^[[{]/.test(v)) return JSON.parse(v.replace(/([{,]\s*)([A-Za-z_$][\w$]*)\s*:/g, '$1"$2":').replace(/'/g, '"'));
+    return v;
+  }
+  function attachState(el) {
+    const map = new Map();
+    scopes.set(el, { signals: map });
+    for (const decl of el.getAttribute('ui:state').split(';')) {
+      if (!decl.trim()) continue;
+      const ci = decl.indexOf(':');
+      const name = decl.slice(0, ci).trim(), val = decl.slice(ci + 1).trim();
+      let s;
+      if (/^GET\s/i.test(val)) {
+        s = sig({ status: 'loading', data: null });
+        fetch(val.slice(4).trim()).then(r => r.json())
+          .then(d => s.value = { status: 'ok', data: d })
+          .catch(e => s.value = { status: 'error', data: String(e) });
+      } else s = sig(coerce(val));
+      map.set(name, s);
+    }
+  }
+
+  /* ---------- aspect binds ---------- */
+  const ASPECT = {
+    text: (el, v) => el.textContent = v,
+    class: (el, v) => el.className = v,
+    hidden: (el, v) => el.hidden = !!v,
+    disabled: (el, v) => el.disabled = !!v,
+    checked: (el, v) => el.checked = !!v,
+  };
+  function attachBind(el, aspect, expr) {
+    const update = () => { try { ASPECT[aspect](el, safeEval(expr, el)); } catch (e) { console.warn(e.message); } };
+    track(update);
+  }
+  function attachBinds(el) { // ui:bind="aspect: expr" and ui:bind-<aspect>="expr"
+    for (const a of el.attributes) {
+      const m = a.name.match(/^ui:bind(?:-([a-zA-Z]+))?$/);
+      if (!m) continue;
+      if (m[1]) attachBind(el, m[1], a.value);
+      else { const ci = a.value.indexOf(':'); attachBind(el, a.value.slice(0, ci).trim(), a.value.slice(ci + 1).trim()); }
+    }
+  }
+  function attachModel(el) { // two-way bind on inputs
+    const path = el.getAttribute('ui:model');
+    track(() => { el.value = readPath(path, el) ?? ''; });
+    el.addEventListener('input', () => setPath(path, el.value, el));
+  }
+
+  /* ---------- ui:each — keyed list over a signal ---------- */
+  function attachEach(el) {
+    const [itemName, , listPath] = el.getAttribute('ui:each').trim().split(/\s+/);
+    const keyAttr = el.getAttribute('ui:key') || 'id';
+    const listRef = resolvePath(listPath, el); // resolve while still attached
+    const template = el.cloneNode(true);
+    const parent = el.parentElement;
+    const anchor = document.createComment('ui:each');
+    parent.insertBefore(anchor, el);
+    el.remove();
+    const rows = new Map();
+    function render(list) {
+      if (!Array.isArray(list)) return;
+      const keys = new Set();
+      list.forEach((item, idx) => {
+        const key = item?.[keyAttr] ?? idx;
+        keys.add(key);
+        let r = rows.get(key);
+        if (!r) {
+          const row = template.cloneNode(true);
+          const itemSig = sig(item);
+          scopes.set(row, { signals: new Map([[itemName, itemSig]]) });
+          parent.insertBefore(row, anchor);
+          attachSubtree(row);
+          r = { row, itemSig };
+          rows.set(key, r);
+        } else r.itemSig.value = item;
+        parent.insertBefore(r.row, anchor); // key order; moveBefore() when reordering lands
+      });
+      for (const [k, r] of [...rows]) if (!keys.has(k)) { r.row.remove(); rows.delete(k); }
+    }
+    track(() => { // listRef was captured while attached — el is detached now
+      let v = listRef.sig.value;
+      for (const s of listRef.segs) v = v?.[s];
+      render(v);
+    });
+  }
+
+  /* ---------- fx: event -> closed verb list ---------- */
+  const MOCK = { fail: () => readPath('flaky', document.body) }; // demo backend; LIVE=false by design
+  async function doCall(v, el) {
+    const url = v.url.replace(/\{([\w.]+)\}/g, (_, p) => readPath(p, el));
+    // capture the optimistic path's signal ref up front: the optimistic set may remove
+    // this row from the DOM (DELETE), and the rollback must not re-resolve through it
+    const opt = v.optimistic ? { ref: resolvePath(v.optimistic.path, el), expr: v.optimistic.expr } : null;
+    const readRef = r => { let x = r.sig.value; for (const s of r.segs) x = x?.[s]; return x; };
+    const writeRef = (r, val) => {
+      if (!r.segs.length) { r.sig.value = val; return; }
+      const copy = o => Array.isArray(o) ? [...o] : { ...o };
+      const root = copy(r.sig.value); let cur = root;
+      for (let k = 0; k < r.segs.length - 1; k++) { cur[r.segs[k]] = copy(cur[r.segs[k]]); cur = cur[r.segs[k]]; }
+      cur[r.segs[r.segs.length - 1]] = val;
+      r.sig.value = root;
+    };
+    const old = opt ? readRef(opt.ref) : undefined;
+    if (opt) writeRef(opt.ref, safeEval(opt.expr, el));
+    await new Promise(r => setTimeout(r, 350)); // mock latency
+    const ok = !MOCK.fail();
+    if (!ok && opt) writeRef(opt.ref, old); // rollback via captured ref
+    return ok;
+  }
+  function parseVerb(src) {
+    const m = src.trim().match(/^(\w+)\s*([\s\S]*)$/); if (!m) return null;
+    const name = m[1]; let args = m[2].trim(); const v = { name };
+    if (name === 'set') { const mm = args.match(/^([\w.]+)\s*=\s*([\s\S]+)$/); v.path = mm[1]; v.expr = mm[2]; }
+    else if (name === 'toggle') v.path = args;
+    else if (name === 'toast') v.expr = args;
+    else if (name === 'onfail') v.expr = args.replace(/^toast\s+/, '');
+    else if (name === 'call') {
+      const om = args.match(/optimistic:\s*set\s+([\w.]+)\s*=\s*([^;]+)/);
+      if (om) { v.optimistic = { path: om[1], expr: om[2].trim() }; args = args.replace(/optimistic:[^;]+/, '').trim(); }
+      const mm = args.match(/^(GET|POST|PUT|PATCH|DELETE)\s+(\S+)$/); v.method = mm[1]; v.url = mm[2];
+    }
+    return v;
+  }
+  function attachFx(el) {
+    const spec = el.getAttribute('ui:fx');
+    const ci = spec.indexOf(':');
+    const evName = spec.slice(0, ci).trim();
+    const verbs = spec.slice(ci + 1).split(';').map(parseVerb).filter(Boolean);
+    const go = async () => {
+      let failed = false;
+      for (const v of verbs) {
+        try {
+          if (v.name === 'set') setPath(v.path, safeEval(v.expr, el), el);
+          else if (v.name === 'toggle') setPath(v.path, !readPath(v.path, el), el);
+          else if (v.name === 'call') { try { failed = !(await doCall(v, el)); } catch (e) { console.warn(e.message); failed = true; } }
+          else if (v.name === 'onfail' && failed) toast(safeEval(v.expr, el), true);
+          else if (v.name === 'toast') toast(safeEval(v.expr, el), false);
+        } catch (e) { console.warn(e.message); }
+      }
+    };
+    el.addEventListener(evName, e => {
+      if (el.hasAttribute('ui:transition') && document.startViewTransition) document.startViewTransition(go);
+      else go();
+    });
+  }
+  function toast(msg, fail) {
+    let host = document.getElementById('toasts');
+    if (!host) { host = Object.assign(document.createElement('div'), { id: 'toasts' }); document.body.append(host); }
+    const t = Object.assign(document.createElement('div'), { className: 'toast' + (fail ? ' fail' : ''), textContent: msg });
+    host.append(t);
+    setTimeout(() => t.remove(), 2600);
+  }
+
+  /* ---------- one attach pass over the tree ---------- */
+  function attachSubtree(root) {
+    for (const el of [root, ...root.querySelectorAll('*')]) {
+      attachBinds(el);
+      if (el.hasAttribute('ui:model')) attachModel(el);
+      if (el.hasAttribute('ui:fx')) attachFx(el);
+    }
+  }
+  function attachAll(root) {
+    const els = [root, ...root.querySelectorAll('*')];
+    for (const el of els) if (el.isConnected && el.hasAttribute('ui:state')) attachState(el);
+    for (const el of els) if (el.isConnected && el.hasAttribute('ui:each')) attachEach(el);
+    for (const el of els) if (el.isConnected && !el.hasAttribute('ui:each')) {
+      attachBinds(el);
+      if (el.hasAttribute('ui:model')) attachModel(el);
+      if (el.hasAttribute('ui:fx')) attachFx(el);
+    }
+  }
+  attachAll(document.body);
+})();
+</script>
+</body>
+</html>

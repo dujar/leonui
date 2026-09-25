@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>leonspace ui — component gallery</title>
+<link rel="stylesheet" href="/src/ui.css">
+<style>
+  /* app-level CSS: unlayered rules always win over the layered ui.base (integration contract) */
+  #override-win { color: rgb(255, 0, 0); }
+</style>
+</head>
+<body ui:state="ver: '0.1.0'">
+<h1 class="ui-t-title">leonspace ui <span class="ui-badge ui-b-brand" id="ver-badge" ui:bind="text: ver"></span></h1>
+<p class="ui-t-muted" ui:bind="text: 'runtime v' + ver + ' — component gallery'"></p>
+<p id="override-win">override probe</p>
+<ul ui:stack gap="4">
+  <li><a href="/pages/layout.html">Layout — stack, row, card, divider, spacer</a></li>
+  <li><a href="/pages/content.html">Content — text, badge, icon, image</a></li>
+  <li><a href="/pages/forms.html">Forms — field, input, textarea, select, checkbox, buttons</a></li>
+  <li><a href="/pages/overlays.html">Overlays — popover, menu, modal, toast, prompt, confirm</a></li>
+  <li><a href="/pages/navigation.html">Navigation — tabs, accordion, screens + view transitions</a></li>
+  <li><a href="/pages/data.html">Data — keyed list, remote cells, table sort, scope shadowing</a></li>
+  <li><a href="/pages/inbox.html">Integration — inbox app over the real mock API</a></li>
+</ul>
+<script src="/src/ui.js"></script>
+</body>
+</html>

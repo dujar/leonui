@@ -1,0 +1,10 @@
+# dependencies
+node_modules/
+
+# build output (regenerate with `bun run build` and scripts/build-vendors.sh)
+dist/
+bench/vendor/
+
+# runtime noise
+*.log
+.DS_Store
