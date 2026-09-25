@@ -1,0 +1,7 @@
+<!doctype html><html lang="en"><head><title>hello world</title><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/src/ui.css"><style>body{padding:1.25rem;font-size:15px}</style></head>
+<body ui:state="name: 'world'">
+  <p>Hello, <b ui:bind="text: name"></b>!</p>
+  <button ui:fx="click: set name = 'leonxstream'">Greet leonxstream</button>
+  <button ui:fx="click: set name = 'world'">Reset</button>
+<script type="module" src="/dist/leonxstream.js"></script>
+</body></html>

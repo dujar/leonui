@@ -1,0 +1,36 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verb reference — leonxstream docs</title>
+<link rel="stylesheet" href="/docs/docs.css">
+</head>
+<body class="docs">
+<nav id="docs-nav"><a class="brand" href="/docs/">leonxstream docs</a></nav>
+<main>
+<h1>Verb reference</h1>
+<p><code>ui:fx="event: verb; verb; …"</code> — handlers are lists of verbs from this closed catalog. Closed is the point: a fixed vocabulary the runtime can check, and an agent can learn in one page.</p>
+
+<table>
+  <tr><th>Verb</th><th>Effect</th></tr>
+  <tr><td><code>set path = expr</code></td><td>assign a signal (immutable replacement all the way down)</td></tr>
+  <tr><td><code>toggle path</code></td><td>flip a boolean</td></tr>
+  <tr><td><code>call M /url [with {…}] [optimistic: set …]</code></td><td>fetch; body at event time; auto-rollback on failure</td></tr>
+  <tr><td><code>onfail toast '…'</code></td><td>runs only when the previous <code>call</code> failed</td></tr>
+  <tr><td><code>toast expr</code></td><td>transient message in a <code>role=status</code> host</td></tr>
+  <tr><td><code>nav '#screen-id'</code></td><td>switch <code>[data-screen]</code> sections (+ view transition with <code>ui:transition</code>)</td></tr>
+  <tr><td><code>refetch cell</code></td><td>re-run a remote cell's GET</td></tr>
+  <tr><td><code>prompt 'q' into path</code></td><td>ask, store the answer</td></tr>
+  <tr><td><code>confirm 'q'</code></td><td>guard — aborts the remaining verbs if declined</td></tr>
+  <tr><td><code>focus '#sel'</code></td><td>move focus</td></tr>
+  <tr><td><code>reset '#form'</code></td><td>form.reset() + re-sync <code>ui:model</code> paths</td></tr>
+  <tr><td><code>delay ms</code></td><td>pause the verb list</td></tr>
+</table>
+
+<h2>Expression whitelist</h2>
+<p>Literals · dot paths · <code>.length</code> · <code>+ - * / %</code> · <code>== != &lt; &gt; &lt;= &gt;=</code> · <code>&amp;&amp; || !</code> · ternary · array/object literals with spread · and exactly these pure operators: <code>without(arr, item)</code>, <code>contains(str, sub)</code>, <code>first(arr)</code>, <code>sortBy(arr, key)</code>. Everything else is rejected with a named error, and every warning lands in <code>window.__ui.warns</code>.</p>
+
+<h2>Static checking</h2>
+<p>Because behavior is data on the tree, <code>ui check</code>-style tooling can lint verbs, verify referenced signals exist (the runtime already names undeclared signals), and flag calls without <code>onfail</code>. That is the roadmap's verification wedge — and the reason the grammar stays closed.</p>
+<div class="next">Next → <a href="/docs/">Back to welcome</a></div>
+</main>
+<script src="/docs/docs.js"></script>
+</body></html>

@@ -1,0 +1,32 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>State & binds — leonxstream docs</title>
+<link rel="stylesheet" href="/docs/docs.css">
+</head>
+<body class="docs">
+<nav id="docs-nav"><a class="brand" href="/docs/">leonxstream docs</a></nav>
+<main>
+<h1>State & binds</h1>
+<p>Signals are typed cells; bindings are fine-grained: one aspect of one element. The expression language is a whitelist — literals, paths, arithmetic, comparisons, ternaries and a few pure operators — so it can be statically checked and never <code>eval</code>d.</p>
+
+<div data-example="/docs/examples/counter.html"></div>
+
+<h2>Bind aspects</h2>
+<table>
+  <tr><th>Aspect</th><th>Writes</th></tr>
+  <tr><td><code>text</code></td><td>textContent</td></tr>
+  <tr><td><code>class</code></td><td>className (replaces)</td></tr>
+  <tr><td><code>hidden</code> / <code>disabled</code> / <code>checked</code> / <code>open</code></td><td>the property, boolean-coerced</td></tr>
+  <tr><td><code>attr:name</code></td><td>any attribute</td></tr>
+</table>
+<p>One <code>ui:bind</code> attribute may hold several <code>aspect: expr</code> pairs separated by <code>;</code>; additional <em>attributes</em> use the hyphen form: <code>ui:bind-class="…"</code> (HTML drops duplicate attribute names).</p>
+
+<h2>Computed values</h2>
+<p><code>ui:computed="open: …"</code> on a state-bearing element derives a signal that recomputes when its dependencies change — filters, totals, sorted views.</p>
+
+<h2>Scoping</h2>
+<p>Signals resolve by walking ancestors, nearest declaration wins. Declare page-wide state on <code>&lt;body&gt;</code>; a <code>ui:state</code> deeper down shadows it for its subtree.</p>
+<div class="next">Next → <a href="/docs/lists.html">Lists</a></div>
+</main>
+<script src="/docs/docs.js"></script>
+</body></html>

@@ -1,0 +1,20 @@
+<!doctype html><html lang="en"><head><title>server data</title><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/src/ui.css"><style>body{padding:1.25rem;font-size:15px}</style></head>
+<body ui:state="tasks: GET /api/tasks">
+  <div ui:row gap="2" style="margin-bottom:8px">
+    <button id="rf" ui:button ui:fx="click: refetch tasks">Refetch</button>
+    <button id="add" ui:button variant="primary"
+            ui:fx="click: call POST /api/tasks with { title: 'new task ' + (tasks.data.length + 1) }
+                            optimistic: set tasks.data = [ { id: 0 - tasks.data.length, title: 'new task ' + (tasks.data.length + 1), done: false }, ...tasks.data ];
+                   refetch tasks">Add via POST</button>
+  </div>
+  <p class="ui-state" ui:bind-hidden="tasks.status != 'loading'">loading…</p>
+  <p class="ui-state ui-state-error" ui:bind-hidden="tasks.status != 'error'" ui:bind-text="'error: ' + tasks.data"></p>
+  <ul class="ui-list">
+    <li ui:each="task in tasks.data" ui:key="id" class="ui-list-item"
+        ui:bind-class="task.done ? 'ui-list-item done' : 'ui-list-item'">
+      <span class="ui-list-title" style="flex:1" ui:bind="text: task.title"></span>
+      <span class="ui-badge" ui:bind="text: task.done ? 'done' : 'open'"></span>
+    </li>
+  </ul>
+<script type="module" src="/dist/leonxstream.js"></script>
+</body></html>

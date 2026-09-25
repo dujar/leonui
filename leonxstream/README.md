@@ -61,6 +61,10 @@ dist/            built bundle (git-ignorable artifact of `bun run build`)
 
 Effect-verb invariants: request payloads (`with …`, `{path}` interpolation) evaluate at **event time, before** optimistic mutations; rollback restores via pre-captured signal refs, so it works even when the optimistic set removed the row from the DOM. All runtime warnings are collected in `window.__ui.warns`.
 
+## Docs
+
+`bun run dev`, then open **/docs/** — a GitBook-style tutorial site where every example is live: the code block is the real source file and the panel under it runs it. Hello world → state & binds → lists → forms → server data (optimistic/rollback) → overlays → theming → verb reference.
+
 ## Agent-first distribution
 
 The framework's primary authors are coding agents, so the agent contract ships *with the package*:

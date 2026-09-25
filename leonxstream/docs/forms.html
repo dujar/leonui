@@ -1,0 +1,26 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forms — leonxstream docs</title>
+<link rel="stylesheet" href="/docs/docs.css">
+</head>
+<body class="docs">
+<nav id="docs-nav"><a class="brand" href="/docs/">leonxstream docs</a></nav>
+<main>
+<h1>Forms</h1>
+<p><code>ui:model</code> is the two-way bind for form controls: the control writes the signal on input/change, and the signal writes the control whenever it changes otherwise. Selects and text inputs take the string value.</p>
+
+<div data-example="/docs/examples/two-way.html"></div>
+
+<h2>Checkboxes are different</h2>
+<p><code>ui:model</code> writes strings, so booleans use <code>ui:bind-checked</code> plus a <code>toggle</code> verb on <code>change</code> — see the settings example in <code>pages/audit-settings.html</code>.</p>
+
+<h2>Buttons and forms</h2>
+<ul>
+  <li><code>submit</code> handlers are <strong>auto-preventDefaulted</strong> — a form with <code>ui:fx="submit: …"</code> will never navigate away.</li>
+  <li>A disabled button fires no events: don't bind <code>disabled</code> and the verb that un-disables it to the same button.</li>
+  <li><code>focus '#sel'</code>, <code>reset '#form'</code> (note: <code>reset</code> re-syncs <code>ui:model</code> paths only — pair it with explicit <code>set</code> verbs for checkbox state) and <code>toast '…'</code> close the loop.</li>
+</ul>
+<div class="next">Next → <a href="/docs/server-data.html">Server data</a></div>
+</main>
+<script src="/docs/docs.js"></script>
+</body></html>
