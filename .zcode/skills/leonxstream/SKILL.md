@@ -75,6 +75,27 @@ Theming: override CSS custom properties (`--brand`, `--bg`, `--ink`, `--muted`, 
 - One malformed attribute cannot break the page: failures are isolated per element and collected in `window.__ui.warns` — check it when debugging.
 - Remote data states: gate with `ui:bind-hidden="tasks.status != 'ok'"` for loading/error/ok panels; `refetch tasks` re-runs the GET.
 
+## Reusable components
+
+A component is a subtree: markup + state + behavior together. Three reuse mechanisms:
+
+1. **Scoped subtree** — any element with `ui:state` is an independent instance; copying the block duplicates the widget with isolated state.
+2. **`ui:use` templates (default choice for repetition):**
+   ```html
+   <template id="stat-tile">
+     <div class="ui-card" ui:state="n: 0">
+       <span ui:bind="text: label"></span>
+       <b ui:bind="text: n + start"></b>
+       <button ui:fx="click: set n = n + 1">+1</button>
+     </div>
+   </template>
+   <div ui:use="#stat-tile" label="Users" start="120"></div>
+   ```
+   Host attributes become **prop signals** (coerced like `ui:state`; `id`/`class`/`style` stay layout, not props). `ui:state` inside the template is **per-instance**; behavior attaches per clone. Templates may nest `ui:use`. Live example: `/docs/examples/component-use.html`.
+3. **Custom elements (for distribution):** the runtime exports `attach` — a custom element injects its `ui:*` markup, sets a scope on itself with `sig` signals from its attributes, and calls `attach(this)`. Consumers write `<x-counter label="votes" start="5">`. Live example: `/docs/examples/component-element.html` (+ `component-element.js`).
+
+Styling half of reuse: variants (`variant="primary|ghost|…"`) and tokens — a component varies through the catalog, never bespoke CSS.
+
 ## Docs & live examples
 
 The docs site with runnable examples for every subsystem lives at `/docs/` on the dev server (source in `docs/`, examples in `docs/examples/` — each example file is the single source of truth shown as code AND rendered live). Copy patterns from `/pages/` (full component gallery) or `/docs/` (tutorials).

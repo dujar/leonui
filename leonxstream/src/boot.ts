@@ -1,41 +1,15 @@
-/* boot.ts — full-tree attach passes + debug hook */
-import { guard, warns } from './signals.ts';
-import { attachState, attachComputed } from './state.ts';
-import { attachEach } from './each.ts';
-import { attachSubtree } from './scan.ts';
-import { attachBinds, attachModel } from './binds.ts';
-import { attachEnhancers } from './enhancers.ts';
-import { attachFx } from './fx.ts';
+/* boot.ts — full-tree attach + debug hook. Boot is idempotent: importing the
+ * bundle twice (e.g. a page script + a component script importing { attach })
+ * attaches exactly once. */
+import { warns } from './signals.ts';
+import { attach } from './scan.ts';
 import { VERSION } from './version.ts';
 
-function attachAll(root: Element): void {
-  const els = [root, ...root.querySelectorAll('*')];
-  for (const el of els)
-    if (el.isConnected && el.hasAttribute('ui:state'))
-      guard(() => attachState(el), 'state', el);
-  for (const el of els)
-    if (el.isConnected && el.hasAttribute('ui:computed'))
-      guard(() => {
-        const attr = el.getAttribute('ui:computed')!;
-        const ci = attr.indexOf(':');
-        attachComputed(el, attr.slice(0, ci).trim(), attr.slice(ci + 1).trim());
-      }, 'computed', el);
-  for (const el of els)
-    if (el.isConnected && el.hasAttribute('ui:each'))
-      guard(() => attachEach(el), 'each', el);
-  for (const el of els) {
-    if (!el.isConnected || el.hasAttribute('ui:each')) continue;
-    guard(() => attachEnhancers(el), 'enhance', el);
-    guard(() => attachBinds(el), 'bind', el);
-    if (el.hasAttribute('ui:model')) guard(() => attachModel(el), 'model', el);
-    if (el.hasAttribute('ui:fx')) guard(() => attachFx(el), 'fx', el);
-  }
-}
-
 function boot(): void {
-  try { attachAll(document.body); } finally {
-    (window as unknown as { __uiReady: boolean }).__uiReady = true;
-  }
+  const w = window as unknown as { __uiBooted?: boolean; __uiReady: boolean };
+  if (w.__uiBooted) return;
+  w.__uiBooted = true;
+  try { attach(document.body); } finally { w.__uiReady = true; }
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

@@ -1,0 +1,22 @@
+<!doctype html><html lang="en"><head><title>ui:use components</title><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/src/ui.css"><style>body{padding:1.25rem;font-size:15px}</style></head>
+<body>
+  <!-- The component: markup + state + behavior in one template, written once. -->
+  <template id="stat-tile">
+    <div class="ui-card" ui:state="n: 0" style="min-width:9rem">
+      <span class="ui-badge ui-b-brand" ui:bind="text: label"></span>
+      <p style="margin:.4rem 0"><b ui:bind="text: n + start"></b></p>
+      <div ui:row gap="2">
+        <button ui:button ui:fx="click: set n = n + 1">+1</button>
+        <button ui:button ui:fx="click: set n = 0">reset</button>
+      </div>
+    </div>
+  </template>
+
+  <!-- Three instances: props via attributes, state is per-instance. -->
+  <div ui:row gap="3" wrap>
+    <div ui:use="#stat-tile" label="Users" start="120"></div>
+    <div ui:use="#stat-tile" label="Orders" start="37"></div>
+    <div ui:use="#stat-tile" label="Errors" start="2"></div>
+  </div>
+<script type="module" src="/dist/leonxstream.js"></script>
+</body></html>
