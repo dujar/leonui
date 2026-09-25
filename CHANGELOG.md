@@ -3,7 +3,7 @@
 All notable changes to leonui are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/); versioning follows semver.
 
-## [Unreleased]
+## [0.3.0] — 2026-09-26
 
 An accuracy-and-performance review pass over the runtime, its tests, and its
 documentation. Every fix below is pinned by `tests/accuracy.test.ts`.
