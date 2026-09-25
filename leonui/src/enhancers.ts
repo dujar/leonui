@@ -32,7 +32,10 @@ export function injectSprite(): void {
   document.body.prepend(svg);
 }
 
-type Enhancer = (el: Element) => void;
+/** `rowIndex` is the item's position when the element was cloned from a
+ * `ui:each` template, or -1 outside a list. Only `ui:reveal` needs it today — a
+ * step has to be measured from somewhere — and every other enhancer ignores it. */
+type Enhancer = (el: Element, rowIndex: number) => void;
 const align = (el: HTMLElement): void => {
   const a = el.getAttribute('align');
   if (a === 'between') el.style.justifyContent = 'space-between';
@@ -131,14 +134,19 @@ export const ENHANCERS: Record<string, Enhancer> = {
     if (pl) el.setAttribute('data-placement', pl);
   },
   'ui:modal': el => el.classList.add('ui-dialog'),
-  'ui:reveal': el => {
+  'ui:reveal': (el, rowIndex) => {
     // Every prop was validated and a bad one already removed by attachEnhancers,
     // so an absent attribute here IS the default — same shape as gap/align above.
     const from = el.getAttribute('from') ?? 'up';
     const trigger = el.getAttribute('trigger') ?? 'scroll';
     const step = Number(el.getAttribute('stagger') ?? '0');
     el.setAttribute('data-reveal-from', from);
-    if (step > 0) (el as HTMLElement).style.setProperty('--ui-reveal-delay', step * 80 + 'ms');
+    // A stagger is a *step*, and a step is only meaningful relative to a position.
+    // The attribute cannot know where its row sits in a list, so the list tells it:
+    // `attachSubtree` passes the item index. Outside a list the element's own step
+    // is all there is — which is the hand-written-siblings case, unchanged.
+    const steps = step > 0 ? (rowIndex >= 0 ? step * rowIndex : step) : 0;
+    if (steps > 0) (el as HTMLElement).style.setProperty('--ui-reveal-delay', steps * 80 + 'ms');
 
     // The hidden state lives behind this class (see ui.css), so a page that never
     // runs the runtime never hides anything. Arming is instant by construction —
@@ -160,15 +168,38 @@ export const ENHANCERS: Record<string, Enhancer> = {
       for (const e of entries) {
         if (!e.isIntersecting) continue;
         show();
-        io.unobserve(e.target); // one-shot: scrolling back up must not replay it
+        io.disconnect(); // one-shot: scrolling back up must not replay it
       }
     }, { rootMargin: '0px 0px -12% 0px' });
     io.observe(el);
+    // The negative bottom margin is what makes this a scroll reveal rather than a
+    // load reveal: an element has to be properly in view, not merely touching the
+    // edge. But it is a band the element must be able to *leave*, and an element
+    // anchored to the viewport — `position: fixed`, or a sticky bar pinned to the
+    // bottom — never moves relative to the root. One that starts inside that band
+    // can therefore never intersect it, and would stay armed and invisible for the
+    // life of the page, with the runtime running: the one thing the armed state is
+    // never allowed to do. So anything already inside the viewport when we arm is
+    // revealed now, and the margin keeps its meaning for everything below the fold.
+    requestAnimationFrame(() => {
+      if (el.classList.contains('ui-reveal-in')) return;
+      const r = (el as HTMLElement).getBoundingClientRect();
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      if (r.top < vh && r.bottom > 0) { show(); io.disconnect(); }
+    });
   },
   'ui:tabs': el => {
     el.classList.add('ui-tabs');
     const tabs = [...el.querySelectorAll('[role="tab"]')] as HTMLElement[];
     const panels = [...el.querySelectorAll('[role="tabpanel"]')] as HTMLElement[];
+    // Nothing to wire: the class lands, no tab is ever selected, no panel is ever
+    // hidden, and every panel shows at once. That is a silent no-op — the same
+    // shape of mistake as a wrong host, one level in — so it gets the same
+    // treatment rather than rendering something that only looks plausible.
+    if (!tabs.length) {
+      warn(`ui: ui:tabs found no [role="tab"] inside <${el.tagName.toLowerCase()}> — nothing to wire`);
+      return;
+    }
     const select = (i: number): void => {
       tabs.forEach((t, j) => {
         t.setAttribute('aria-selected', String(i === j));
@@ -198,8 +229,9 @@ export const ENHANCERS: Record<string, Enhancer> = {
 };
 
 /** `attrs` is passed in by the attach hot path so the element's attribute list is
- * materialised once per element instead of once per pass. */
-export function attachEnhancers(el: Element, attrs: Attr[] = [...el.attributes]): void {
+ * materialised once per element instead of once per pass. `rowIndex` is forwarded
+ * to every enhancer; only `ui:reveal` reads it (see the Enhancer type above). */
+export function attachEnhancers(el: Element, attrs: Attr[] = [...el.attributes], rowIndex = -1): void {
   for (const a of attrs) {
     // hasOwn, not `in`: plain-object lookup would treat `toString`/`constructor`
     // as enhancers and call Object.prototype members on the element
@@ -229,7 +261,7 @@ export function attachEnhancers(el: Element, attrs: Attr[] = [...el.attributes])
       for (const msg of enhancerAttrProblems(a.name, attrs.map(x => x.name))) warn(msg);
       if (skip) continue;
       for (const prop of rejectedProps(a.name, get)) el.removeAttribute(prop);
-      impl(el);
+      impl(el, rowIndex);
     } catch (e) { warn((e as Error).message); }
   }
 }

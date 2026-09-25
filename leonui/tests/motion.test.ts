@@ -110,6 +110,39 @@ t('motion: trigger="load" animates without scrolling, and stagger delays it', as
   await p.close();
 });
 
+t('motion: stagger inside a ui:each cascades by row index, not by a constant', async () => {
+  const p = await open();
+  // `stagger="1"` on the *template* is one step, but a step only means something
+  // relative to a position — and an attribute cannot know where its row landed.
+  // The list supplies the index, so the three rows are 0 / 80 / 160ms apart. Before
+  // that, every row computed the same 80ms and the cascade the docs promise could
+  // not happen at all: a list that all arrives at once.
+  const delays = await p.eval<string[]>(
+    `[...document.querySelectorAll('.m-card')].map(el => el.style.getPropertyValue('--ui-reveal-delay'))`);
+  assert.equal(delays.length, 3, 'three rows rendered');
+  assert.deepEqual(delays, ['', '80ms', '160ms'], 'row 0 has no delay, then one step each');
+
+  // and the stylesheet reads the same custom property, so the computed delay agrees
+  const computed = await Promise.all(['a', 'b', 'c'].map((_, i) =>
+    p.eval<string>(`getComputedStyle(document.querySelectorAll('.m-card')[${i}]).transitionDelay`)));
+  assert.ok(computed.every(v => v.split(',').every(d => d.trim().endsWith('s'))), `real delays, got ${computed}`);
+  await p.close();
+});
+
+t('motion: a viewport-anchored reveal still becomes visible', async () => {
+  const p = await open();
+  // The -12% bottom rootMargin is a band an element has to be able to *leave*. A
+  // `position: fixed` bar never moves relative to the viewport, so it starts inside
+  // the band and stays there: intersection alone never fires, and it would sit at
+  // opacity 0 for the life of the page *with the runtime running* — the one thing
+  // arming the hidden state is never allowed to do. The viewport safety net is what
+  // makes "below the fold" mean what it says instead of "not currently intersecting".
+  await p.waitFor(`getComputedStyle(document.getElementById('m-fixed')).opacity === '1'`);
+  assert.equal(await p.eval<boolean>(`document.getElementById('m-fixed').classList.contains('ui-reveal-in')`), true);
+  assert.equal(await p.eval<number>(`window.scrollY`), 0, 'and it took no scrolling to get there');
+  await p.close();
+});
+
 t('motion: from= picks the axis the element travels on', async () => {
   const p = await open();
   // before any scrolling: each one is hidden and offset on its own axis

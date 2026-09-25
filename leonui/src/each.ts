@@ -66,8 +66,11 @@ export function attachEach(el: Element): void {
         }
         parent!.insertBefore(row, anchor);
         // collect() records the subscriptions this row's binds create, so the
-        // signal sets they joined can be cleaned up when the row goes away
-        const { dispose } = collect(() => attachSubtree(row));
+        // signal sets they joined can be cleaned up when the row goes away.
+        // idx is passed down so a `ui:reveal stagger` inside the row cascades by
+        // position instead of every row arriving at the same instant — an
+        // attribute on the element cannot know where its row sits in the list.
+        const { dispose } = collect(() => attachSubtree(row, idx));
         r = { row, itemSig, dispose };
         rows.set(key as string | number, r);
       } else {
