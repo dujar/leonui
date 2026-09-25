@@ -6,14 +6,14 @@ import type { Scope } from './types.ts';
 import { coerce, attachState, attachComputed } from './state.ts';
 import { attachEach } from './each.ts';
 import { attachBinds, attachModel } from './binds.ts';
-import { attachEnhancers, ENHANCERS } from './enhancers.ts';
+import { attachEnhancers } from './enhancers.ts';
 import { attachFx } from './fx.ts';
+import { ALL_UI_ATTRS, CORE_ATTRS, ENHANCER_NAMES, isBindAttr, suggest } from './vocab.ts';
 
-/** the known ui:* vocabulary — anything else on an element is a typo worth naming */
-const KNOWN_UI_ATTRS = new Set([
-  'ui:state', 'ui:computed', 'ui:model', 'ui:each', 'ui:key',
-  'ui:sortable', 'ui:use', 'ui:fx', 'ui:transition',
-]);
+/** the known ui:* vocabulary — anything else on an element is a typo worth naming.
+ * The list comes from vocab.ts, which is also what `ui check` reads, so a name is
+ * never legal in one and illegal in the other. */
+const KNOWN_UI_ATTRS = new Set<string>([...CORE_ATTRS, ...ENHANCER_NAMES]);
 
 /** one attribute array per element: checkVocab / enhancers / binds all read from
  * this snapshot instead of each re-materialising el.attributes */
@@ -23,9 +23,11 @@ function checkVocab(attrs: Attr[]): void {
   for (const a of attrs) {
     if (!a.name.startsWith('ui:')) continue;
     if (KNOWN_UI_ATTRS.has(a.name)) continue;
-    if (a.name === 'ui:bind' || /^ui:bind-[\w:-]+$/.test(a.name)) continue;
-    if (Object.hasOwn(ENHANCERS, a.name)) continue;
-    warn(`ui: unknown attribute "${a.name}" (typo? the vocabulary lives in skill/SKILL.md)`);
+    if (isBindAttr(a.name)) continue;
+    const hint = suggest(a.name, ALL_UI_ATTRS);
+    warn(hint
+      ? `ui: unknown attribute "${a.name}" (typo? did you mean "${hint}"? — vocabulary in skill/SKILL.md)`
+      : `ui: unknown attribute "${a.name}" (typo? the vocabulary lives in skill/SKILL.md)`);
   }
 }
 

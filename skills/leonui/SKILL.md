@@ -5,7 +5,7 @@ description: Author interactive UI as plain HTML + leonui attributes (ui:state, 
 
 # leonui
 
-Typed reactive UI runtime. **HTML is the schema; the browser is the framework.** You author plain HTML plus a small attribute grammar (five families plus satellites); a ~23 KB runtime (8.7 KB gzipped; `dist/leonui.js`, auto-boots on import) provides signals, fine-grained binds, keyed lists, and a closed effect-verb catalog. No build step, no components, no vdom. The stylesheet `src/ui.css` is a separate optional file (9.9 KB min / 2.7 KB gzipped) that supplies the enhancer classes below.
+Typed reactive UI runtime. **HTML is the schema; the browser is the framework.** You author plain HTML plus a small attribute grammar (five families plus satellites); a ~27.8 KB runtime (10.4 KB gzipped; `dist/leonui.js`, auto-boots on import) provides signals, fine-grained binds, keyed lists, a closed effect-verb catalog, and validation that turns every malformed attribute into a named warning. No build step, no components, no vdom. The stylesheet `src/ui.css` is a separate optional file (9.9 KB min / 2.7 KB gzipped) that supplies the enhancer classes below. Verify your markup without a browser with `ui check` (see **Verifying a page**).
 
 ## The attribute families
 
@@ -48,7 +48,33 @@ Literals (single- or double-quoted; object keys may be quoted), dot paths, `.len
 
 ## Structural enhancers (classes + a11y come from the shipped `ui.css`)
 
-`ui:stack`/`ui:row` (attrs: `gap=1..8`, `align=start|center|end|between` — cross axis; `center` does both, `between`/`wrap` — main axis), `ui:card` (`variant=inset|outline`), `ui:text` (`variant=title|subtitle|muted|strong|code`), `ui:badge` (`variant=brand|danger|warn|success`), `ui:button` (`variant=primary|ghost|danger|icon`, `block`), `ui:divider`, `ui:spacer size=1..8`, `ui:icon name=check|x|plus|search|chevron-down|dot|menu`, `ui:image ratio="3/2"` (error fallback class), `ui:field`, `ui:input` / `ui:textarea` / `ui:select` / `ui:checkbox` (control classes), `ui:popover anchor="#btn" placement=…` (platform popover + anchor positioning), `ui:modal` (plain `<dialog>` + `command="show-modal" commandfor="id"` buttons — zero JS), `ui:tabs` (role=tab/tablist/tabpanel markup; arrow keys + Home/End included).
+Every enhancer validates its props at attach time, and nothing about it is silent:
+
+- a **value** outside the listed set → named warning, the prop is dropped, the enhancer falls back to its default;
+- a **wrong host** element → named warning, the enhancer does **not** run (there is no default host to fall back to);
+- a **misspelled prop name** (`varient="primary"`) → named warning with a suggestion, when the name is close to a real prop.
+
+The host column is a contract, not a hint: `ui:icon` reads a bare `name` prop, so it is confined to `<svg>`, where `name` means nothing to HTML.
+
+| Enhancer | Props (value vocabularies) | Host / notes |
+|---|---|---|
+| `ui:stack` | `gap=1..8`, `align=start\|center\|end\|between`, `center` | any element; `align` moves the **cross** axis, `center` does both |
+| `ui:row` | `gap=1..8`, `align=…`, `center`, `wrap` | any element; `align` moves the **cross** axis, `wrap` the main axis |
+| `ui:card` | `variant=inset\|outline` | any element |
+| `ui:text` | `variant=title\|subtitle\|muted\|strong\|code` | any element |
+| `ui:badge` | `variant=brand\|danger\|warn\|success` | any element |
+| `ui:button` | `variant=primary\|ghost\|danger\|icon`, `block` | any element (incl. `<a>`) |
+| `ui:spacer` | `size=1..8` | any element |
+| `ui:divider` · `ui:field` | — | any element |
+| `ui:tabs` | — | any element; needs `role=tab/tablist/tabpanel` markup (arrow keys + Home/End included) |
+| `ui:icon` | `name=check\|x\|plus\|search\|chevron-down\|dot\|menu` | **`<svg>` only** — it writes the sprite `<use>` |
+| `ui:image` | `ratio="3/2"` (a CSS aspect-ratio) | **`<img>` only**; adds an error fallback class |
+| `ui:input` | — | **`<input>` only** (control class) |
+| `ui:textarea` | — | **`<textarea>` only** |
+| `ui:select` | — | **`<select>` only** |
+| `ui:checkbox` | — | **`<input>` only** |
+| `ui:popover` | `anchor="#btn"`, `placement=bottom-start\|bottom-end\|top-start\|top-end` | any element, but must also carry the native `popover` attribute and be opened by a `popovertarget` invoker |
+| `ui:modal` | — | **`<dialog>` only**; open with `command="show-modal" commandfor="id"` buttons — zero JS |
 
 Theming: override CSS custom properties (`--brand`, `--bg`, `--ink`, `--muted`, `--line`, `--danger`, `--r`, `--ui-gap-*`, `--ui-text-*`) in a `theme.css`. Never write raw colors/sizes in markup — pick the token or variant. Dark mode is automatic (`light-dark()`).
 
@@ -74,7 +100,7 @@ Theming: override CSS custom properties (`--brand`, `--bg`, `--ink`, `--muted`, 
 - `ui:popover` styles/wires an element that must still carry the native `popover` attribute and be opened via a `popovertarget` invoker button (see pages/overlays.html).
 - State is visible only to descendants of the declaring element. Declare shared state on `<body>`.
 - Arrays are replaced immutably (`set rows = [ {...}, ...rows ]`), never mutated in place. Use `without(rows, item)` to remove.
-- One malformed attribute cannot break the page: failures are isolated per element and collected in `window.__ui.warns` — check it when debugging. Unknown verbs and unknown `ui:*` attributes warn by name, so typos surface instead of silently doing nothing. `window.__ui.verbs` is the live catalog.
+- One malformed attribute cannot break the page: failures are isolated per element and collected in `window.__ui.warns` — check it when debugging. Unknown verbs, unknown `ui:*` attributes, out-of-vocabulary prop values, wrong enhancer hosts and misspelled prop names all warn **by name**, so a typo surfaces instead of silently doing nothing. `window.__ui.verbs` is the live catalog.
 - Re-attaching a root is a no-op: if both a page script and a component script import the bundle, the tree attaches once — no stacked listeners, no reset state.
 - Remote data states: gate with `ui:bind-hidden="tasks.status != 'ok'"` for loading/error/ok panels; `refetch tasks` re-runs the GET.
 
@@ -112,13 +138,31 @@ growth protocol, grammar budget — is [`naming.md`](naming.md). New vocabulary 
 through its five doors; `tests/skill.test.ts` enforces that this file documents every
 shipped `ui:*` name.
 
+## Verifying a page (run this before you say you are done)
+
+`ui check` reads the markup and reports the same findings the runtime would warn about — **before** anything renders, with no browser and no dev server. Run it after writing or editing any page:
+
+```bash
+bunx leonui check                 # every *.html under the cwd
+bunx leonui check pages/ docs/    # directories
+bunx leonui check page.html --json
+```
+
+It exits `1` when it finds an error, so it works as a pre-commit or CI gate. It reports: unknown `ui:*` names (with a `did you mean`), unknown or malformed verbs and bad verb arguments, prop values outside their closed set, enhancers on the wrong host, misspelled prop names, expressions that do not parse or call a non-whitelisted function, malformed `ui:state`/`ui:computed`/`ui:each`/`ui:model`/`ui:key`, and duplicate attributes (HTML silently drops the later one). Findings are printed as `file:line:column: severity: message`.
+
+**What it cannot check** — these need a running page, so confirm them in the browser:
+nested path segments (`task.tittle` is not statically decidable), cross-file scope from `ui:use`, whether a selector actually matches, and anything that depends on remote data. For those, load the page and read `window.__ui.warns`, which collects the runtime half.
+
+A clean `ui check` plus an empty `window.__ui.warns` is the bar for "it came out as expected".
+
 ## Dev loop
 
 ```bash
 bun run dev            # serve pages + mock API (PORT env overrides; default 4700)
-bun run build          # bundle src/ → dist/leonui.js (minified)
+bun run build          # bundle src/ → dist/leonui.js + dist/cli.mjs (minified)
 bun run typecheck      # tsc --noEmit (must stay clean)
-bun test tests/        # 71 tests across 11 files: e2e + accuracy + comparisons + grammar guarantees (real Chromium via CDP)
+bun run check          # ui check over the cwd — browser-free markup verification
+bun test tests/        # full suite: e2e + accuracy + comparisons + grammar guarantees (real Chromium via CDP; prints its own count)
 bun run bench          # regenerate benchmark.md from measured runs
 ```
 

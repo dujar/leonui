@@ -1,7 +1,8 @@
 /* state.ts — ui:state declarations and ui:computed derived signals */
 import type { Signal } from './types.ts';
-import { scopes, sig, capture } from './signals.ts';
+import { scopes, sig, capture, warn } from './signals.ts';
 import { safeEval } from './parser.ts';
+import { remoteDecl } from './vocab.ts';
 
 /** Coerce a declared value into a signal's initial value.
  *
@@ -49,11 +50,21 @@ export function attachState(el: Element): void {
     const name = decl.slice(0, ci).trim();
     const val = decl.slice(ci + 1).trim();
     let s: Signal;
-    if (/^GET\s/i.test(val)) {
-      const url = val.slice(4).trim();
-      s = sig({ status: 'loading', data: null });
-      sc.meta.set(name, { type: 'remote', url });
-      fetchCell(s, url);
+    const rem = remoteDecl(val);
+    if (rem) {
+      // `n: GET` with no URL is a mistake, not a literal: without this branch the
+      // value fell through to coerce() and the cell silently became the string
+      // "GET". Warn, and park the cell in the error state instead of fetching "".
+      if (rem.bare) {
+        warn(`ui: remote cell "${name}" needs a URL after GET — nothing was fetched`);
+        // no meta: `refetch rows` then warns "not a remote cell" instead of
+        // fetch(''), which would pull the page itself back as the response
+        s = sig({ status: 'error', data: null });
+      } else {
+        s = sig({ status: 'loading', data: null });
+        sc.meta.set(name, { type: 'remote', url: rem.url });
+        fetchCell(s, rem.url);
+      }
     } else {
       s = sig(coerce(val));
     }

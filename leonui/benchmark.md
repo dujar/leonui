@@ -16,27 +16,27 @@ Raw data: `tests/artifacts/bench.json`, `tests/artifacts/sizes.json`. Re-running
 
 | Framework | Mount | Create 1000 | Update 100 | Replace 1000 | Remove 1000 |
 |---|---|---|---|---|---|
-| leonui | 35.1 | 30.6 | 32.6 | 31.2 | 28.6 |
-| react | 30.0 | 31.5 | 32.7 | 31.7 | 30.7 |
-| vue | 34.0 | 31.1 | 32.8 | 31.8 | 30.8 |
-| alpine | 30.8 | 29.0 | 32.9 | 29.3 | 19.0 |
+| leonui | 37.5 | 30.2 | 32.6 | 30.8 | 28.2 |
+| react | 28.8 | 31.6 | 33.5 | 31.8 | 29.4 |
+| vue | 30.8 | 30.9 | 32.8 | 31.2 | 31.0 |
+| alpine | 37.6 | 28.6 | 32.8 | 29.2 | 21.0 |
 
 Op rankings (only meaningful when the winner beats the runner-up by > 5 ms; otherwise a statistical tie):
-- **create1000**: saturated / statistical tie (spread 2.5 ms) — no ranking.
-- **update**: saturated / statistical tie (spread 0.3 ms) — no ranking.
-- **replace**: saturated / statistical tie (spread 2.5 ms) — no ranking.
-- **remove** → **alpine** (runner-up gap 9.6 ms).
+- **create1000**: saturated / statistical tie (spread 3.0 ms) — no ranking.
+- **update**: saturated / statistical tie (spread 0.9 ms) — no ranking.
+- **replace**: saturated / statistical tie (spread 2.6 ms) — no ranking.
+- **remove** → **alpine** (runner-up gap 7.2 ms).
 
 ## Bundle size (minified / gzip)
 
 | Framework | Minified | Gzipped |
 |---|---|---|
-| leonui | 23.2 KB | 8.7 KB |
+| leonui | 27.8 KB | 10.4 KB |
 | react | 210.8 KB | 66.9 KB |
 | vue | 184.2 KB | 68.3 KB |
 | alpine | 57.1 KB | 20.1 KB |
 
-**Like for like.** Every row above is framework JS only: React/Vue/Alpine ship no stylesheet into this comparison, and the bench page's own demo styles are inline in all four pages, so they cancel — leonui's row is the runtime alone. leonui's shipped stylesheet is a **separate, optional file** (`src/ui.css`, **9.9 KB / 2.7 KB**), most of which this page never uses. Runtime + stylesheet together — the complete framework cost — is **33.1 KB / 11.4 KB**, still less than any single runtime above.
+**Like for like.** Every row above is framework JS only: React/Vue/Alpine ship no stylesheet into this comparison, and the bench page's own demo styles are inline in all four pages, so they cancel — leonui's row is the runtime alone. leonui's shipped stylesheet is a **separate, optional file** (`src/ui.css`, **9.9 KB / 2.7 KB**), most of which this page never uses. Runtime + stylesheet together — the complete framework cost — is **37.8 KB / 13.1 KB**, still less than any single runtime above.
 
 ## Correctness
 
@@ -49,5 +49,6 @@ create 1000 with correct first/last labels, exactly 100 rows flip on update, tog
 - Create/replace/remove differences are visible but small; treat sub-10 ms gaps as machine noise — reruns can flip tight rankings.
 - **Bundle size is where the architecture shows.** leonui's runtime is a fraction of the smallest runtime here, and it also does less (no scheduler, no suspense, no transition system). Its row is JS only, like every other row — the stylesheet is listed separately above rather than folded in.
 - **These numbers are not comparable to the previously published table.** That one was generated before the v0.2.0 cross-file `ui:use` feature and was never regenerated, so it understated the runtime by ~4.6 KB minified. The 2026-09 accuracy/performance review added a further ~1.4 KB minified (duplicate-key detection, per-row subscription teardown, attach idempotence, a race guard on remote cells, tabs Home/End) — correctness that costs bytes.
+- **The 2026-09 vocabulary pass costs ~4.6 KB minified / ~1.7 KB gzipped** (23.2 → 27.8 KB minified). That is the enhancer value table (`src/vocab.ts`), prop/host/typo validation, did-you-mean suggestions, and the shared `GET` sentinel. It is the price of turning silent no-ops — `variant="primry"`, `gap="99"`, `ui:modal` on a `<div>`, a `varient` typo — into named warnings. The same table feeds the browser-free `ui check`, so the runtime and the checker cannot disagree; a project that wants the bytes back can drop the runtime half and keep the CLI, at the cost of warnings only appearing in CI.
 - **The mount column is not a ranking.** It is a single sample (see methodology) and moved 34 → 66 → 47 ms for byte-identical leonui builds across reruns, while the other three frameworks moved by a few ms in the same reruns. Any leonui mount number published from one run — including the 66.4 ms in the previous table — should be treated as an artifact of that run.
 - These numbers favor simple list workloads; frameworks with schedulers (React) pay latency on deliberately sync micro-ops but handle interruption under load, which this benchmark does not test.
