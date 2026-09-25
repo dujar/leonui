@@ -13,7 +13,7 @@ Typed reactive UI runtime. **HTML is the schema; the browser is the framework.**
 |---|---|
 | `ui:state="name: value; name2: GET /url"` | Declare signals on an element. Descendants see them (nearest ancestor wins = scoping). Values: `'str'`, number, `true/false`, JSON array/object (single-quoted OK), `GET /url` remote cell → `{status, data}`. |
 | `ui:bind="aspect: expr; aspect2: expr2"` or `ui:bind-<aspect>="expr"` | One-way bind, auto-tracked. Aspects: `text class hidden disabled checked open` and `attr:<name>` (e.g. `ui:bind-attr:href`). |
-| `ui:model="path"` | Two-way bind on form controls (`input`, `textarea`, `select`). |
+| `ui:model="path"` | Two-way bind on form controls. Writes the string `.value` — for checkboxes use `ui:bind-checked` + a `toggle` verb instead (booleans, not `"on"`/`""`). |
 | `ui:each="item in listPath" ui:key="id"` | Keyed list. The template element is cloned per item; inside it, `item` is a signal in scope. Add `ui:empty`-style notices via `ui:bind-hidden="list.length != 0"`. |
 | `ui:fx="event: verb; verb; …"` | Event → effect verbs (below). Events are DOM event names (`click`, `change`, `submit`…). `submit` is auto-preventDefaulted — forms never navigate. |
 
@@ -31,6 +31,9 @@ focus '#sel'             reset '#form-sel'       delay ms
 ```
 
 Invariants (the runtime enforces these):
+- Local (non-server) lists need unique ids: keep a `nextId` counter in state (`set notes = [ { id: nextId, … }, ...notes ]; set nextId = nextId + 1`) — do not derive ids from list length (collides after deletions).
+- `reset '#form'` calls `form.reset()` and re-syncs `ui:model` paths only; checkbox/`ui:bind-checked` signals are NOT restored by it — pair it with explicit `set` verbs for booleans.
+- A signal set to an unchanged value does not notify. If a control's initial DOM state differs from its signal default, bind the DOM default too: put `checked`/`selected` attributes on the control that match the declared defaults.
 - `with {…}` bodies and `{path}` URL interpolations evaluate at **event time, before** optimistic mutations — write `call PATCH /api/t/{task.id} with { done: !task.done } optimistic: set task.done = !task.done`.
 - Optimistic rollback restores pre-call values even if the set removed the row from the DOM.
 - `call` sends no body unless `with` is given. Remote-cell shape: `{status: 'loading'|'ok'|'error', data}`.

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Color notes — leonspace ui</title><link rel="stylesheet" href="/src/ui.css"></head>
+<body ui:state="draft: ''; color: 'red'; nextId: 1; notes: []">
+
+  <header class="ui-row" gap="4">
+    <h1 class="ui-t-title" style="flex:1">Color notes</h1>
+    <span id="note-count" ui:badge
+          ui:bind="text: notes.length + (notes.length == 1 ? ' note' : ' notes')"
+          ui:bind-hidden="notes.length == 0"></span>
+  </header>
+
+  <div ui:card style="margin-bottom:12px">
+    <div ui:row gap="3">
+      <input id="note-input" ui:input type="text" ui:model="draft" placeholder="Write a note…" style="flex:1" aria-label="note text">
+      <select id="note-color" ui:select ui:model="color" aria-label="note color">
+        <option value="red">red</option>
+        <option value="green">green</option>
+        <option value="blue">blue</option>
+      </select>
+      <button id="add-btn" ui:button variant="primary"
+              ui:bind="disabled: draft == ''"
+              ui:fx="click: set notes = [ { id: nextId, text: draft, color: color }, ...notes ];
+                              set nextId = nextId + 1;
+                              set draft = ''">Add</button>
+    </div>
+  </div>
+
+  <div ui:card style="padding:8px 16px">
+    <ul class="ui-list" id="note-list">
+      <li ui:each="note in notes" ui:key="id" class="ui-list-item">
+        <span class="ui-badge ui-b-danger"
+              ui:bind-class="note.color == 'red' ? 'ui-badge ui-b-danger' : note.color == 'green' ? 'ui-badge ui-b-success' : 'ui-badge ui-b-brand'"
+              ui:bind="text: note.color"></span>
+        <span class="ui-list-title" style="flex:1" ui:bind="text: note.text"></span>
+        <button class="ui-btn ui-btn-icon" aria-label="remove"
+                ui:fx="click: set notes = without(notes, note)"><svg ui:icon name="x"></svg></button>
+      </li>
+    </ul>
+    <p id="list-empty" class="ui-state" ui:bind-hidden="notes.length != 0">no notes yet — add one above</p>
+  </div>
+
+<script type="module" src="/dist/leonxstream.js"></script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings — leonspace ui</title><link rel="stylesheet" href="/src/ui.css"></head>
+<body ui:state="name: ''; theme: 'system'; emailTips: true; telemetry: false">
+  <h1 class="ui-t-title">Settings</h1>
+
+  <form id="settings-form">
+    <div ui:stack gap="4">
+      <div class="ui-field" ui:field>
+        <label for="inp-name">Display name (two-way ui:model)</label>
+        <input id="inp-name" ui:input type="text" ui:model="name" placeholder="your name…">
+      </div>
+      <p id="echo-name" ui:bind="text: name == '' ? '(empty)' : 'hello ' + name"></p>
+
+      <div class="ui-field" ui:field>
+        <label for="sel-theme">Theme</label>
+        <select id="sel-theme" ui:select ui:model="theme">
+          <option value="light">light</option>
+          <option value="dark">dark</option>
+          <option value="system" selected>system</option>
+        </select>
+      </div>
+      <p id="echo-theme" ui:bind="text: 'theme = ' + theme"></p>
+
+      <label class="ui-row" gap="2" for="chk-tips">
+        <input id="chk-tips" ui:checkbox type="checkbox" checked ui:bind-checked="emailTips"
+               ui:fx="change: toggle emailTips">
+        <span>Email tips</span>
+      </label>
+      <p id="echo-tips" ui:bind="text: emailTips ? 'email tips: on' : 'email tips: off'"></p>
+
+      <label class="ui-row" gap="2" for="chk-telemetry">
+        <input id="chk-telemetry" ui:checkbox type="checkbox" ui:bind-checked="telemetry"
+               ui:fx="change: toggle telemetry">
+        <span>Share anonymous usage data</span>
+      </label>
+      <p id="echo-telemetry" ui:bind="text: telemetry ? 'telemetry: on' : 'telemetry: off'"></p>
+    </div>
+  </form>
+
+  <hr class="ui-divider">
+
+  <div ui:row gap="3" wrap>
+    <button id="btn-save" ui:button variant="primary" ui:bind="disabled: name == ''"
+            ui:fx="click: toast 'Settings saved for ' + name">Save</button>
+    <button id="btn-reset" ui:button
+            ui:fx="click: reset '#settings-form'; set name = ''; set theme = 'system'; set emailTips = true; set telemetry = false">
+      Reset defaults
+    </button>
+    <button id="btn-focus" ui:button ui:fx="click: focus '#inp-name'">Focus name</button>
+  </div>
+
+<script type="module" src="/dist/leonxstream.js"></script>
+</body>
+</html>
