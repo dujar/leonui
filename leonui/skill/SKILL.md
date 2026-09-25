@@ -5,7 +5,7 @@ description: Author interactive UI as plain HTML + leonui attributes (ui:state, 
 
 # leonui
 
-Typed reactive UI runtime. **HTML is the schema; the browser is the framework.** You author plain HTML plus a small attribute grammar (five families plus satellites); a ~30 KB runtime (`dist/leonui.js`, auto-boots on import) provides signals, fine-grained binds, keyed lists, and a closed effect-verb catalog. No build step, no components, no vdom.
+Typed reactive UI runtime. **HTML is the schema; the browser is the framework.** You author plain HTML plus a small attribute grammar (five families plus satellites); a ~27 KB runtime (9 KB gzipped with its stylesheet; `dist/leonui.js`, auto-boots on import) provides signals, fine-grained binds, keyed lists, and a closed effect-verb catalog. No build step, no components, no vdom.
 
 ## The attribute families
 
@@ -115,7 +115,7 @@ shipped `ui:*` name.
 bun run dev            # serve pages + mock API (PORT env overrides; default 4700)
 bun run build          # bundle src/ → dist/leonui.js (minified)
 bun run typecheck      # tsc --noEmit (must stay clean)
-bun test tests/        # 58 tests: e2e + comparisons + grammar guarantees (real Chromium via CDP)
+bun test tests/        # 60 tests: e2e + comparisons + grammar guarantees (real Chromium via CDP)
 bun run bench          # regenerate benchmark.md from measured runs
 ```
 

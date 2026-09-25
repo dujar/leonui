@@ -12,7 +12,7 @@ let browser: Browser;
 const PAGES = [
   '/docs/', '/docs/hello-world.html', '/docs/state-and-binds.html', '/docs/lists.html',
   '/docs/forms.html', '/docs/server-data.html', '/docs/overlays.html', '/docs/theming.html',
-  '/docs/verbs-reference.html',
+  '/docs/components.html', '/docs/verbs-reference.html',
 ];
 
 beforeAll(async () => {

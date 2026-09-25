@@ -26,6 +26,20 @@ benchmarks, contributing.
 - Grammar rulebook: [`leonui/naming.md`](leonui/naming.md)
 - Benchmarks: [`leonui/benchmark.md`](leonui/benchmark.md)
 
+## Where truth lives
+
+Each fact is owned by exactly one document — everything else routes to it and does not
+restate it:
+
+| Topic | Source of truth |
+|---|---|
+| Authoring grammar (attributes, verbs, expressions, enhancers, gotchas) | [`leonui/skill/SKILL.md`](leonui/skill/SKILL.md) — byte-identical twin at [`skills/leonui/SKILL.md`](skills/leonui/SKILL.md), kept in lockstep with `src/` by `tests/skill.test.ts` |
+| Naming & growth policy | [`leonui/naming.md`](leonui/naming.md) |
+| Install, dev loop, structure, benchmark summary | [`leonui/README.md`](leonui/README.md); measured numbers only in the generated [`leonui/benchmark.md`](leonui/benchmark.md) |
+| Tutorials & live examples | [`leonui/docs/`](leonui/docs/), served at `/docs/` by `bun run dev` |
+| Component gallery | `leonui/pages/`, served at `/pages/` |
+| Design history & audits | [`leonui/audit.md`](leonui/audit.md), `leonui/judgment-*.md`, `ui/` + `demo/` — dated records, frozen |
+
 ## License
 
 [MIT](leonui/LICENSE)

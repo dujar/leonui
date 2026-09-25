@@ -1,6 +1,7 @@
 # Agent emission audit — 2026-09-25
 
-Phase-0 test (from judgment.md H3): can a coding agent, given only `AGENTS.md` routing
+Phase-0 test (from judgment.md H3 — design history in `.agent-workbench/product/`,
+local-only and gitignored): can a coding agent, given only `AGENTS.md` routing
 plus the packaged skill, author a **working** leonui page on the first try — and does
 it reach for leonui at all when the repo routes it there?
 

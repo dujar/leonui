@@ -1,4 +1,10 @@
-# leonspace ui — v0.1.0
+# leonspace ui (historical prototype) — v0.1.0
+
+> **Frozen record.** This is the plain-JS proof of concept that became
+> [`leonui/`](../leonui/) (the npm package `leonui`). It is kept as design reference and
+> is not updated. The live runtime, docs, and the authoritative authoring grammar
+> ([`leonui/skill/SKILL.md`](../leonui/skill/SKILL.md)) live in `leonui/` — everything
+> below describes the prototype as of v0.1 and may lag the real framework.
 
 A UI runtime where **HTML is the schema, the element prototypes are the runtime, and the browser is the framework**. Agents author plain HTML plus four attribute families; a ~600-line runtime provides signals with ancestor-chain scoping, auto-tracked binds, a closed effect-verb catalog, and keyed lists — compiled onto verified browser platform APIs. No build step, no vdom, no re-render.
 

@@ -341,8 +341,8 @@ bun run dev        # http://localhost:4700
   server data (optimistic/rollback) → overlays → theming → components → verb reference.
 - **`/pages/`** — the full component gallery; every variant of every enhancer. Copy
   patterns from here rather than inventing syntax.
-- **`/docs/examples/`** — runnable singles (counter, two-way binding, list, sortable,
-  overlays, theming, `ui:use`, custom elements).
+- **`/docs/examples/`** — runnable singles (hello world, counter, two-way binding, list,
+  server data, sortable, overlays, theming, `ui:use`, custom elements).
 
 ## Development
 
