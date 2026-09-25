@@ -12,3 +12,4 @@ bench/vendor/
 # agent-local state (skill discovery symlinks, design history); the shared skill lives in skills/
 .zcode/
 .agent-workbench/
+.npmrc
