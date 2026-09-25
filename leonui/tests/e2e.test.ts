@@ -3,6 +3,7 @@
 import { test, beforeAll, afterAll } from 'bun:test';
 import assert from 'node:assert/strict';
 import { app } from '../serve/app.ts';
+import pkg from '../package.json';
 import { Browser, Page } from './harness.ts';
 
 // bun:test defaults to a 5s per-test timeout; these e2e tests need more
@@ -36,14 +37,14 @@ const resetServer = async () => fetch(base + '/api/__reset', { method: 'POST' })
 
 t('index renders and exposes the runtime', async () => {
   const p = await page('/pages/index.html');
-  assert.equal(await text(p, '#ver-badge'), '0.1.0');
-  assert.equal(await text(p, 'p.ui-t-muted'), 'runtime v0.1.0 — component gallery');
+  assert.equal(await text(p, '#ver-badge'), pkg.version);
+  assert.equal(await text(p, 'p.ui-t-muted'), `runtime v${pkg.version} — component gallery`);
   await p.close();
 });
 
 t('binds: text aspect + expression concat', async () => {
   const p = await page('/pages/index.html');
-  assert.equal(await text(p, 'p.ui-t-muted'), 'runtime v0.1.0 — component gallery');
+  assert.equal(await text(p, 'p.ui-t-muted'), `runtime v${pkg.version} — component gallery`);
   await p.close();
 });
 

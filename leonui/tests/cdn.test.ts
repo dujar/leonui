@@ -3,6 +3,7 @@
 import { test, beforeAll, afterAll } from 'bun:test';
 import assert from 'node:assert/strict';
 import { app } from '../serve/app.ts';
+import pkg from '../package.json';
 import { Browser } from './harness.ts';
 
 let server: ReturnType<typeof Bun.serve>;
@@ -27,7 +28,7 @@ t('cdn: iife build boots from a classic script tag', async () => {
   // public API exposed for custom-element authors
   assert.equal(await p.eval<string>(`typeof window.leonui`), 'object');
   assert.equal(await p.eval<string>(`typeof window.leonui.attach`), 'function');
-  assert.equal(await p.eval<string>(`window.leonui.version`), '0.1.0');
+  assert.equal(await p.eval<string>(`window.leonui.version`), pkg.version);
   assert.deepEqual(await p.eval<string[]>('window.leonui.warns'), []);
   await p.close();
 });
