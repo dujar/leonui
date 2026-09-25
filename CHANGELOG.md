@@ -10,6 +10,13 @@ enforced everywhere except where an attribute only means something next to anoth
 and the authoring agent's copy of the table was the last hand-maintained one — and makes
 animation a first-class, verifiable part of the grammar.
 
+A fourth pass puts that work under adversarial review. Four independent judges were asked
+to find what it got wrong; three came back with blockers. Two were places where the
+branch's own guarantees could not hold. The third was the one that matters most: a class of
+markup the runtime and `ui check` disagreed about, with each half passing its own tests
+while they said different things about the same file. The two verifiers exist to be compared
+with each other, so there is now a test that does exactly that on one source.
+
 ### Added
 
 - **The companion-attribute contract.** `ui:key`/`ui:sortable` without `ui:each`,
@@ -56,12 +63,19 @@ animation a first-class, verifiable part of the grammar.
   `<details>` FAQ and a closing form that toasts then clears. Plus four focused examples
   (`docs/examples/{hero,pricing,stats,faq}.html`), each embedded and running in the new
   `docs/landing-patterns.html`.
-- **Tests**: `tests/motion.test.ts` (6) and `tests/landing.test.ts` (8). `tests/docs.test.ts`
+- **Tests**: `tests/motion.test.ts` (9) and `tests/landing.test.ts` (8). `tests/docs.test.ts`
   now scrapes `data-example=` from the docs pages and **boots every embedded example,
   asserting zero runtime warnings**, so the docs cannot silently acquire a broken example.
   `tests/vocab.test.ts`, `tests/check.test.ts`, `tests/skill.test.ts`, `tests/accuracy.test.ts`
-  and `tests/remotecomponents.test.ts` gained the new-guard cases. Suite: 105 → 135 tests
-  across 15 files.
+  and `tests/remotecomponents.test.ts` gained the new-guard cases.
+- **`tests/parity.test.ts` — the two verifiers, compared on one source.** `ui check` and the
+  runtime are two halves of one promise, and until this file nothing tested that they agree:
+  each half was tested against its own expectations, so a finding one made and the other
+  missed was invisible, and the suite could be fully green while the contract was broken.
+  One markup string goes to both halves and the findings are compared one for one, including
+  the case where the halves *must* differ — the three findings that are runtime-only because
+  no scanner can see them — so an intentional difference cannot quietly become an accidental
+  one. Suite: 105 → **149 tests across 16 files**.
 
 ### Fixed
 
@@ -95,18 +109,91 @@ animation a first-class, verifiable part of the grammar.
 - **Landing-page layout**: anchors landed under the sticky header (fixed with
   `scroll-margin-top: 4.75rem` on `[id]`), and tier CTAs did not line up across unequal copy
   lengths (fixed with a column-flex tier and `margin-top: auto` on the CTA).
+- **The reveal could never appear on an element anchored to the viewport.** The scroll
+  trigger's `-12%` bottom rootMargin is a band an element has to be able to *leave*, and a
+  `position: fixed` bar never moves relative to the viewport: it starts inside the band and
+  stays there, so intersection never fires and it sits at opacity 0 for the life of the page
+  *with the runtime running* — the one thing arming the hidden state may never do. Anything
+  already on screen when it arms is now revealed on the next frame; the margin keeps its
+  meaning for everything below the fold.
+- **A mistake inside a `ui:each` template was invisible when the list was empty** — and this
+  is the halves disagreeing, not merely a miss. The static passes ran on the `ui:each` element
+  only, and the rows that would have carried a child's requirement never existed, so an empty
+  list warned nothing while `ui check`, which reads the markup, reported it. The template
+  subtree is now walked once at the `ui:each` site: one mistake is reported once rather than
+  once per item, and reported even when there are no items.
+- **`stagger` could not cascade.** The skill promised a list whose rows arrive one after
+  another; every row computed the same constant, because an attribute on the element cannot
+  know where its row sits. `attachSubtree` now receives the row index, so `stagger="1"` over
+  three rows is 0/80/160 ms.
+- **A `ui:each` row silently ignored `ui:state`/`ui:computed`/`ui:each`/`ui:use`.** A row runs
+  the bind, enhancer and effect passes only — declare and compose belong to the page — so
+  those four did nothing at all inside a template. A silent no-op is the one thing this
+  vocabulary may not contain, so it is now named once per source element.
+- **`ui check` was validating a value the runtime does not read.** The runtime does
+  `item[getAttribute('ui:key')]`; it does not trim. `ui:key=" id "` therefore looks up the
+  property `" id "`, finds nothing, and keys every row by index — while the checker trimmed
+  first and passed the page. A page that passes the checker and then warns in a console
+  nobody watches is exactly the failure the two verifiers exist to prevent.
+- **A present-but-empty `ui:key` did nothing at all.** `each.ts` falls back to `id` because
+  `''` is falsy, so an attribute someone wrote keyed nothing. `coreAttrProblems` conflated
+  "absent" (the default, which says nothing) with "present and blank" (an author who meant
+  something); only the first is silent now.
+- **`ui:key` naming a property no item has was the last silent fallback.** Nothing static can
+  see it — no checker knows the shape of the data — but the runtime is holding the items, so
+  it is the half that says it, once per list, and only when `ui:key` was actually written:
+  the `id` default is the runtime's choice, not the author's, and a list of strings has no
+  properties to key by at all.
+- **`ui:tabs` with no `[role="tab"]` inside it was a silent no-op** — the class landed, no tab
+  was ever selected and every panel showed at once. Same shape of mistake as a wrong host,
+  one level in.
+- **A named target that cannot be checked was a silent pass.** `ui check README.md` printed
+  `checked 0 files` and exited 0, which reads as a clean bill of health for README.md. Exit 2
+  now, for a named non-HTML file and for finding nothing at all — a gate that goes green
+  because it scanned no files goes green on the day the glob breaks. `ui check ""` no longer
+  scans the cwd either: `resolve('')` *is* the cwd, so a shell variable that expanded to
+  nothing used to scan the whole tree.
+- **`ui check --json --quiet` contradicted itself.** The counts are the verdict and describe
+  the whole scan — deliberately, exactly like the human summary line, which reports "1 error,
+  1 warning" under `--quiet` because hiding detail is not the same as reporting a page clean.
+  But the payload reported `warnings: 1` beside a one-element `findings` array with nothing to
+  explain the gap. A new `suppressed` field names it, so the invariant is readable off the
+  document: `findings.length + suppressed === errors + warnings`.
+- **The reveal took the page's own transitions and never gave them back.** A `transition`
+  shorthand resets *every* transition property on an element, so a `.cta` with
+  `transition: background .2s` stopped transitioning its background the moment it revealed,
+  and kept not transitioning, because the rule kept matching — a real regression on exactly
+  the pages `ui:reveal` exists for. `.ui-reveal-in` is now a transient: when the motion ends
+  the runtime adds `.ui-reveal-settled`, the rule stops matching and the page's transitions
+  return. The duration is read from the stylesheet rather than hardcoded in JS, so the two
+  cannot drift.
 
 ### Changed
 
-- Runtime 27.8 → **31.0 KB minified / 10.4 → 11.6 KB gzipped**; the stylesheet 9.9 →
-  **11.7 KB / 2.7 → 3.3 KB**. `benchmark.md` regenerated, and its honest-reading section now
-  attributes the bytes to the two passes separately — the vocabulary pass ~4.6 KB, this
-  contract-and-motion pass a further ~3.2 KB — instead of pinning the whole delta on the
-  first one, which had made the sentence contradict its own computed parenthetical.
+- Runtime 27.8 → **32.3 KB minified / 10.4 → 12.0 KB gzipped**; the stylesheet 9.9 →
+  **12.5 KB / 2.7 → 3.6 KB**. `benchmark.md` regenerated from one `bun run bench`, so every
+  number in the repo now comes from the same measurement, and its honest-reading section
+  attributes the bytes to the three passes separately — the vocabulary pass ~4.6 KB, the
+  contract-and-motion pass a further ~3.2 KB, the judge pass a further ~1.3 KB — instead of
+  pinning the whole delta on the first one, which had made the sentence contradict its own
+  computed parenthetical. The timing table moved with the rerun, as it always does; the mount
+  column is the single noisy sample the methodology says it is.
 - Documentation: `README.md` and `AGENTS.md` document the companion contract, the motion
   guarantees and the generated table; `naming.md` rule 4 gains the requirement maps, the
   custom-element carve-out and the motion obligation, and rule 7 now says an addition means
-  editing `src/vocab.ts` and running `bun run grammar`.
+  editing `src/vocab.ts` and running `bun run grammar`. Beyond that: the skill's size figures
+  were a release behind, its missing-partner list omitted `ui:key`, its `ui check` exit-status
+  contract was missing three of the four usage errors, its "what it cannot check" list did not
+  name the runtime-only findings, and its build line omitted the IIFE bundle. The CLI's own
+  usage text now states the same exit contract and names those runtime-only findings, because
+  they are findings the checker provably cannot make. `docs/examples/faq.html` and
+  `docs/landing-patterns.html` taught `ui:acc` — an attribute that does not exist; the
+  mechanism is the `ui-acc` **class**. `docs/index.html`'s "~27 KB",
+  `verbs-reference.html`'s claim that `ui check` "will" move linting to build time (it does,
+  now), and `MAINTAINERS.md`'s pack size (~45 kB; it is ~123 kB / 68 files) were all stale.
+  `AGENTS.md` and `CONTRIBUTING.md` no longer claim CI runs inside `leonui/`: the workflow's
+  steps have no `working-directory`, so they run at the repository root — which is why that
+  check does not go green.
 
 ## [0.3.0] — 2026-09-26
 

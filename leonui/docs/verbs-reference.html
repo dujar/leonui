@@ -30,7 +30,7 @@
 <p>Literals · dot paths · <code>.length</code> · <code>+ - * / %</code> · <code>== != &lt; &gt; &lt;= &gt;=</code> · <code>&amp;&amp; || !</code> · ternary · array/object literals with spread · and exactly these pure operators: <code>without(arr, item)</code>, <code>contains(str, sub)</code>, <code>first(arr)</code>, <code>sortBy(arr, key)</code>. Everything else is rejected with a named error, and every warning lands in <code>window.__ui.warns</code>.</p>
 
 <h2>Static checking</h2>
-<p>Because behavior is data on the tree, the runtime itself already lints what it can: unknown verbs, unknown <code>ui:*</code> attributes, undeclared signals and disallowed functions all produce <em>named warnings</em> in <code>window.__ui.warns</code> — typos are errors, never silent no-ops. (<code>ui check</code> will move this linting to build time; that is the roadmap's verification wedge — and the reason the grammar stays closed.)</p>
+<p>Because behavior is data on the tree, the runtime itself already lints what it can: unknown verbs, unknown <code>ui:*</code> attributes, undeclared signals and disallowed functions all produce <em>named warnings</em> in <code>window.__ui.warns</code> — typos are errors, never silent no-ops. <code>ui check</code> does the same job <em>before</em> anything renders, with no browser and no dev server: <code>bunx leonui check</code> reads the markup and reports the same findings as <code>file:line:column</code>, which is what makes it usable as a gate. That is also why the grammar stays closed — a closed vocabulary is what makes a static check possible at all.</p>
 <div class="next">Next → <a href="/docs/">Back to welcome</a></div>
 </main>
 <script src="/docs/docs.js"></script>

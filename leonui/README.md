@@ -3,11 +3,11 @@
 **HTML is the schema; the browser is the framework.**
 
 leonui is a typed reactive UI runtime for plain HTML. You author regular markup plus a small
-attribute grammar — five families, fewer than 30 `ui:*` names — and a ~31 KB runtime
-(11.6 KB gzipped) provides signals, fine-grained binds, keyed lists, a closed catalog of
+attribute grammar — five families, fewer than 30 `ui:*` names — and a ~32 KB runtime
+(12.0 KB gzipped) provides signals, fine-grained binds, keyed lists, a closed catalog of
 effect verbs, entrance animation, and validation that turns every malformed attribute into a
 named warning, compiled onto modern browser platform APIs. The stylesheet (`ui.css`) is a
-separate, optional file: 11.7 KB minified, 3.3 KB gzipped.
+separate, optional file: 12.5 KB minified, 3.6 KB gzipped.
 
 **No build step. No components. No vdom. No eval. No arbitrary JavaScript in markup.**
 The expression language is a whitelist AST, every runtime warning is collected in
@@ -60,8 +60,8 @@ step and no room for hallucinated syntax.
 
 - **The grammar is the product.** Five attribute families cover declare / react / repeat /
   act / compose. The whole vocabulary is designed to fit in an agent's context window —
-  [`naming.md`](naming.md) caps the grammar spec at a ~2,000-token budget and every new
-  name must state its token cost.
+  [`naming.md`](naming.md) caps the generated grammar table at a ~2,000-token budget (it is
+  ~510 today) and every new name must state its token cost.
 - **Closed, not open.** Expressions are a whitelist (never `eval`), effect verbs are a
   closed catalog, unknown verbs and attributes are *named* warnings instead of silent
   no-ops. A page either behaves as written or tells you exactly which attribute lied.
@@ -345,9 +345,13 @@ no keyframes to write:
 
 `trigger="scroll"` reveals once when the element enters the viewport (and does not re-arm
 when you scroll back); `trigger="load"` animates immediately. Combine with `ui:each` +
-`stagger` for a list that cascades in.
+`stagger` for a list that cascades in — inside a list the step is multiplied by the row's
+**index**, so one attribute on the template is enough (`stagger="1"` over three rows is
+0/80/160 ms); outside a list the element's own step is all there is.
 
-Two guarantees matter more than the animation itself, and both are asserted by tests:
+Four guarantees matter more than the animation itself, and all four are asserted by tests.
+The first two are ways an entrance animation destroys a page rather than decorating it; the
+last two are ways it breaks one quietly:
 
 - **Nothing is hidden unless the runtime is running.** The armed state is scoped to
   `.ui-reveal-ready` on `<html>`, a class only the runtime sets — so a page whose bundle
@@ -356,10 +360,20 @@ Two guarantees matter more than the animation itself, and both are asserted by t
 - **Reduced motion is honoured.** The entire motion block lives inside
   `@media (prefers-reduced-motion: no-preference)`; under `prefers-reduced-motion: reduce`
   the elements are simply present, immediately.
+- **Anything already on screen when it arms is revealed at once.** The scroll trigger's
+  `-12%` bottom margin is a band an element has to be able to *leave*, and a `position:
+  fixed` bar never moves relative to the viewport — it starts inside the band and stays
+  there. Intersection alone would leave it armed and invisible for the life of the page,
+  with the runtime running.
+- **The element gets its own transitions back.** `.ui-reveal-in` carries a `transition`
+  shorthand, and a shorthand resets *every* transition property on the element, so a `.cta`
+  with `transition: background .2s` would stop transitioning its background the moment it
+  revealed. The runtime adds `.ui-reveal-settled` when the motion ends, the rule stops
+  matching, and the page's transitions return.
 
-If you animate something yourself, copy those two rules — and note the third one the
-implementation had to learn: declare the `transition` on the **revealed** state, not the
-armed one, or arming animates too and every element slides *out* on load.
+If you animate something yourself, copy those rules — and note the one the implementation
+had to learn: declare the `transition` on the **revealed** state, not the armed one, or
+arming animates too and every element slides *out* on load.
 
 `tests/motion.test.ts` asserts a mid-flight opacity strictly between 0 and 1 (so the
 animation must actually interpolate, not merely gain a class), that arming is instant, and
@@ -384,8 +398,11 @@ that both guarantees hold.
 The runtime warns in a console nobody is watching, and only about elements that actually
 attached. `ui check` reads the markup instead — same findings, no browser, no dev server,
 `file:line:column`, and an exit status that tells the three outcomes apart: `0` nothing to
-report, `1` an error was found, `2` a usage error (an unknown option, or a path that does
-not exist — a typo in a gate must not read as a pass):
+report, `1` an error was found, `2` a usage error. A usage error is anything that would
+otherwise make a gate pass without verifying anything — an unknown option, an empty path, a
+path that does not exist or is not HTML, or a scan that found no `.html` files at all,
+because a gate that goes green because it found no files goes green on the day the glob
+breaks:
 
 ```bash
 bunx leonui check                 # every *.html under the cwd
@@ -396,10 +413,20 @@ bunx leonui check page.html --json
 It reports unknown `ui:*` names (with a `did you mean`), unknown or malformed verbs and bad
 verb arguments, prop values outside their closed set, enhancers on the wrong host,
 misspelled prop names, expressions that fail to parse or call a non-whitelisted function,
-malformed `ui:state`/`ui:computed`/`ui:each`/`ui:model`/`ui:key`, duplicate attributes
-(HTML silently drops the later one), a companion attribute with no partner (`ui:key`
-without `ui:each`, `ui:transition` without `ui:fx`, `ui:model` on a non-control), and
-`ui:use` without a `#id`.
+malformed `ui:state`/`ui:computed`/`ui:each`/`ui:model`/`ui:key`, a present-but-empty
+`ui:key` (which reads nothing from the item and silently keys by index), duplicate
+attributes (HTML silently drops the later one), a companion attribute with no partner
+(`ui:key` without `ui:each`, `ui:transition` without `ui:fx`, `ui:model` on a non-control),
+and `ui:use` without a `#id`. `--json` emits
+`{ files, errors, warnings, suppressed, findings }` — the counts describe the whole scan and
+`suppressed` is how many findings `--quiet` kept out of `findings`, so the payload never
+reports a number its own list contradicts.
+
+Three findings are **runtime-only**, because no scanner that reads tags can make them: a
+`ui:tabs` with no `[role="tab"]` inside it (a descendant selector), `ui:state`/`ui:computed`/
+`ui:each`/`ui:use` written inside a `ui:each` template (a row runs the bind, enhancer and
+effect passes only), and a `ui:key` naming a property no item has (nothing static knows the
+shape of your data). Load the page and read `window.__ui.warns` for those.
 
 It is honest about its limits: nested path segments (`task.tittle` is not statically
 decidable), cross-file scope from `ui:use`, whether a selector matches, and anything
@@ -440,12 +467,13 @@ CDP. **`benchmark.md` is the only place measured numbers live**, because every r
 them; this section deliberately summarises rather than restates.
 
 The one figure that is architectural rather than timing noise: the complete leonui runtime
-minifies to **31.0 KB (11.6 KB gzipped)**, and the optional stylesheet adds 11.7 KB
-(3.3 KB gzipped) — 42.8 KB / 14.9 KB together, still less than any single runtime it is
-compared against. Two passes paid for correctness rather than features: the vocabulary pass
-that turned malformed markup into a named warning cost ~4.6 KB minified, and the
-companion-attribute contract plus `ui:reveal` cost a further ~3.2 KB. Both are read from the
-same table `ui check` uses, so the two can never disagree.
+minifies to **32.3 KB (12.0 KB gzipped)**, and the optional stylesheet adds 12.5 KB
+(3.6 KB gzipped) — 44.8 KB / 15.6 KB together, still less than any single runtime it is
+compared against. Three passes paid for correctness rather than features: the vocabulary pass
+that turned malformed markup into a named warning cost ~4.6 KB minified, the
+companion-attribute contract plus `ui:reveal` cost a further ~3.2 KB, and the judge pass that
+made the runtime and `ui check` agree about an empty list cost a further ~1.3 KB. All three
+are read from the same table `ui check` uses, so the two can never disagree.
 
 The benchmark's own honest reading, which this README endorses rather than edits around:
 

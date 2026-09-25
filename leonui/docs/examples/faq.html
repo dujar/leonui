@@ -7,10 +7,11 @@
 
   <!-- `details` + `summary` is the platform's own accordion: it opens with no
        JavaScript, it is keyboard-operable for free, and it is findable by
-       in-page search. `ui:acc` adds the styling, the marker rotation and the
-       open/close state; it implements nothing. -->
+       in-page search. All leonui adds is the `ui-acc` *class* on the <details> —
+       the styling and the marker rotation. There is no `ui:acc` attribute: an
+       accordion holds no state the runtime could own, so it needs no grammar. -->
   <div class="faq">
-    <details class="ui-acc" ui:reveal stagger="0">
+    <details class="ui-acc" ui:reveal stagger="1">
       <summary>Do my clients need an account?</summary>
       <div class="ui-acc-body">No. They get a payment link and a PDF. Nothing to sign up for, nothing to remember.</div>
     </details>

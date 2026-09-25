@@ -49,7 +49,7 @@
 <h2>FAQ, and the platform's own accordion</h2>
 <div data-example="/docs/examples/faq.html"></div>
 
-<p><code>&lt;details&gt;</code> + <code>&lt;summary&gt;</code> opens with no JavaScript, is keyboard-operable for free, and its content is findable by in-page search — three things a hand-rolled accordion has to re-implement and usually does not. <code>ui:acc</code> supplies the styling and the marker rotation; it implements none of the behaviour. Reveal and <code>&lt;details&gt;</code> compose without ceremony: the reveal animates the row in once, and the row keeps its own open and close afterwards.</p>
+<p><code>&lt;details&gt;</code> + <code>&lt;summary&gt;</code> opens with no JavaScript, is keyboard-operable for free, and its content is findable by in-page search — three things a hand-rolled accordion has to re-implement and usually does not. <code>ui-acc</code> is a CSS <em>class</em>, not an attribute — there is no <code>ui:acc</code> in the grammar, because an accordion holds no state the runtime could own — and it supplies the styling and the marker rotation while implementing none of the behaviour. Reveal and <code>&lt;details&gt;</code> compose without ceremony: the reveal animates the row in once, and the row keeps its own open and close afterwards.</p>
 
 <h2>What else the page uses</h2>
 <ul>

@@ -3,8 +3,8 @@
 **HTML is the schema; the browser is the framework.**
 
 leonui is a typed reactive UI runtime for plain HTML: author markup plus a small
-attribute grammar (`ui:state`, `ui:bind`, `ui:each`, `ui:fx`, `ui:use`), and a ~31 KB
-runtime (11.6 KB gzipped) provides signals, keyed lists, a closed effect-verb catalog,
+attribute grammar (`ui:state`, `ui:bind`, `ui:each`, `ui:fx`, `ui:use`), and a ~32 KB
+runtime (12.0 KB gzipped) provides signals, keyed lists, a closed effect-verb catalog,
 entrance animation, and validation that turns every malformed attribute into a named
 warning — no build step, no components, no vdom, no eval. A separate optional stylesheet
 supplies the structural enhancer classes. Built agent-first: the authoring grammar ships
