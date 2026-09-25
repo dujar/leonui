@@ -12,14 +12,21 @@
     },
     "./ui.css": "./src/ui.css",
     "./skill": "./skill/SKILL.md",
+    "./check": "./src/check.ts",
+    "./vocab": "./src/vocab.ts",
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "bun build ./src/index.ts --outfile ./dist/leonui.js --target=browser --minify && bun build ./src/cdn.ts --outfile ./dist/leonui.iife.js --target=browser --minify",
+    "build": "bun build ./src/index.ts --outfile ./dist/leonui.js --target=browser --minify && bun build ./src/cdn.ts --outfile ./dist/leonui.iife.js --target=browser --minify && bun run build:cli",
+    "build:cli": "bun build ./src/cli.ts --outfile ./dist/cli.mjs --target=node --minify",
     "typecheck": "tsc --noEmit",
     "dev": "bun run serve/serve.ts",
     "test": "bun test tests/",
+    "check": "bun run src/cli.ts check",
     "bench": "bun run scripts/bench.ts"
+  },
+  "bin": {
+    "leonui": "./dist/cli.mjs"
   },
   "devDependencies": {
     "@types/bun": "latest",

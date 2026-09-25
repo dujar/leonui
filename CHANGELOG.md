@@ -8,6 +8,34 @@ Format based on [Keep a Changelog](https://keepachangelog.com/); versioning foll
 An accuracy-and-performance review pass over the runtime, its tests, and its
 documentation. Every fix below is pinned by `tests/accuracy.test.ts`.
 
+A second pass closes the gap that mattered most for the framework's stated purpose —
+*an agent writes UI from the skill and verifies it came out as expected*. The grammar was
+documented as a closed vocabulary but enforced as an open one: a value nothing understood
+produced a class nothing styles, silently.
+
+### Added
+
+- **The vocabulary is declared once (`src/vocab.ts`) and enforced twice.** It holds every
+  `ui:*` attribute name, the bind aspects, the verb + response-gate catalog, the icon
+  names, the `ui:state` sentinel (`GET`), and each enhancer's props with their value
+  vocabularies — closed sets, inclusive ranges (`gap=1..8`), patterns (`ratio="3/2"`) —
+  plus allowed host tags and required native attributes. The runtime and the checker read
+  this one table, so a page can never disagree with `ui check`.
+- **`ui check` — browser-free static verification.** `bunx leonui check [paths…] [--json]
+  [--quiet]` reports the same findings the runtime would warn about, *before* anything
+  renders, as `file:line:column`, and exits non-zero on error so it works as a gate. It
+  reads `vocab.ts`, `parser.ts` and `fx.ts` directly and cannot drift from the
+  implementation. Shipped as the `leonui` binary (`dist/cli.mjs`), a module
+  (`leonui/check`) and the table as data (`leonui/vocab`).
+- **Named warnings where there used to be silence**: a prop value outside its vocabulary, a
+  *misspelled prop name* (`varient="primary"` previously rendered the default variant and
+  said nothing), an enhancer on the wrong host, and a state sentinel with no operand
+  (`n: GET`). A rejected value falls back to the enhancer's default; a wrong host means the
+  enhancer does not run at all — there is no default host to fall back to.
+- **Tests**: `tests/vocab.test.ts` (the table, and the runtime wiring) and
+  `tests/check.test.ts` (checker units, CLI exit codes, and a zero-findings pass over the
+  whole shipped gallery — the false-positive guard).
+
 ### Fixed
 
 - **`ui:each`: duplicate keys are no longer silent.** Two items sharing a key can only
@@ -23,6 +51,11 @@ documentation. Every fix below is pinned by `tests/accuracy.test.ts`.
   expression parser instead of a JSON repair path, so values the parser accepts — e.g.
   `{ note: "it's fine" }` — no longer fail at declaration time; malformed number literals
   (`1.2.3`) are rejected rather than coerced.
+- **`ui:state="n: GET"` is an error, not the string `"GET"`.** The remote-cell test was
+  `/^GET\s/`, which a bare `GET` fails — so the value fell through to the literal branch
+  and the cell silently became `"GET"`. The runtime now warns and parks the cell in the
+  error state, and `ui check` reports it. The runtime and the checker shared the bug,
+  which is exactly why the sentinel now lives in one table.
 - **Remote cells: stale responses are discarded.** A slow first `GET` could overwrite the
   result of a newer request on the same cell. Each cell now tracks its latest request
   sequence and ignores responses that a newer request has superseded.
@@ -45,6 +78,19 @@ documentation. Every fix below is pinned by `tests/accuracy.test.ts`.
 - `attach`'s hot path takes one attribute snapshot per element and skips `ui:*` names in
   the DOM-property pass; the optional-attribute verification map folded into the same skip
   list. Runtime grows ~1.4 KB minified for the correctness fixes above.
+- **Runtime grows a further ~4.6 KB minified / ~1.7 KB gzipped** (23.2 → 27.8 KB minified)
+  for the vocabulary table and its validation — the price of turning silent no-ops into
+  named warnings. A project that would rather not pay it in the browser can keep the CLI
+  and drop the runtime half, at the cost of warnings only appearing in CI. `benchmark.md`
+  regenerated from measured runs.
+- `ui:icon` builds its sprite reference with the DOM API instead of `innerHTML`; the
+  enhancer no longer string-builds markup from an attribute value.
+- Documentation corrected to match: `skill/SKILL.md` (+ its byte-identical twin) now states
+  the enhancer value vocabularies and host contracts in the vocabulary table, documents the
+  fallback/skip semantics, and gains a **Verifying a page** section; `naming.md` rules 2, 4
+  and 6 record the sentinel, value-vocabulary and host requirements and where they are
+  enforced; `README.md`, `AGENTS.md` and `benchmark.md` carry the new sizes and the checker.
+  Hardcoded test counts were removed from the docs — they had already gone stale twice.
 
 ### Added
 

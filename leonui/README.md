@@ -3,17 +3,18 @@
 **HTML is the schema; the browser is the framework.**
 
 leonui is a typed reactive UI runtime for plain HTML. You author regular markup plus a small
-attribute grammar — five families, fewer than 30 `ui:*` names — and a ~23 KB runtime
-(8.7 KB gzipped) provides signals, fine-grained binds, keyed lists, and a closed catalog of
-effect verbs, compiled onto modern browser platform APIs. The stylesheet (`ui.css`) is a
+attribute grammar — five families, fewer than 30 `ui:*` names — and a ~27.8 KB runtime
+(10.4 KB gzipped) provides signals, fine-grained binds, keyed lists, a closed catalog of
+effect verbs, and validation that turns every malformed attribute into a named warning,
+compiled onto modern browser platform APIs. The stylesheet (`ui.css`) is a
 separate, optional file: 9.9 KB minified, 2.7 KB gzipped.
 
 **No build step. No components. No vdom. No eval. No arbitrary JavaScript in markup.**
 The expression language is a whitelist AST, every runtime warning is collected in
 `window.__ui.warns`, and one malformed attribute cannot break the page. That closed,
 checkable surface is deliberate: it is what makes leonui safe to hand to a coding agent —
-the package ships with its own authoring skill so an agent can produce working UI from the
-grammar alone.
+the package ships with its own authoring skill, and with `ui check`, a browser-free
+verifier an agent can run before anything renders.
 
 ```html
 <!doctype html><html><head>
@@ -40,6 +41,7 @@ grammar alone.
 - [Structural enhancers and theming](#structural-enhancers-and-theming)
 - [Overlays and platform APIs](#overlays-and-platform-apis)
 - [Debugging](#debugging)
+- [Verifying a page](#verifying-a-page)
 - [Agent-first distribution](#agent-first-distribution)
 - [Performance](#performance)
 - [Documentation](#documentation)
@@ -109,7 +111,15 @@ import { attach } from 'leonui';
 ```
 
 Package exports: `leonui` (runtime), `leonui/ui.css` (stylesheet), `leonui/skill`
-(the agent-facing grammar, as markdown).
+(the agent-facing grammar, as markdown), `leonui/check` (the browser-free verifier, as a
+module), and `leonui/vocab` (the closed vocabulary table — every `ui:*` name, prop value
+set, verb and icon, as data). The package also installs a `leonui` binary:
+
+```bash
+bunx leonui check          # verify every *.html under the cwd — no browser, no server
+```
+
+See [Verifying a page](#verifying-a-page).
 
 ## The grammar: five families
 
@@ -270,20 +280,24 @@ the shipped catalog, never bespoke CSS.
 ## Structural enhancers and theming
 
 Structural attributes map to shipped classes, a11y wiring, and platform behavior — copy
-patterns from `/pages/` rather than inventing markup:
+patterns from `/pages/` rather than inventing markup. Each one **validates its props at
+attach time**: a value outside the listed set warns by name and falls back to the default,
+a wrong host element warns by name and the enhancer does not run, and a misspelled prop
+name warns with a suggestion. Nothing about an enhancer is silent.
 
-| Enhancer | Notes |
-|---|---|
-| `ui:stack` / `ui:row` | flex layout; `gap=1..8`, `align=start\|center\|end\|between` (cross axis; `center` does both), `between`/`wrap` (main axis) |
-| `ui:card` | `variant=inset\|outline` |
-| `ui:text` | `variant=title\|subtitle\|muted\|strong\|code` |
-| `ui:badge` | `variant=brand\|danger\|warn\|success` |
-| `ui:button` | `variant=primary\|ghost\|danger\|icon`, `block` |
-| `ui:divider`, `ui:spacer size=1..8` | separation & rhythm |
-| `ui:icon name=…` | `check`, `x`, `plus`, `search`, `chevron-down`, `dot`, `menu` |
-| `ui:image ratio="3/2"` | aspect ratio + error-fallback class |
-| `ui:field`, `ui:input`, `ui:textarea`, `ui:select`, `ui:checkbox` | form control classes |
-| `ui:tabs` | `role=tablist/tab/tabpanel` markup with arrow-key **and Home/End** navigation |
+| Enhancer | Props | Host / notes |
+|---|---|---|
+| `ui:stack` / `ui:row` | `gap=1..8`, `align=start\|center\|end\|between`, `center`, (`wrap` on `ui:row`) | any element; `align` moves the **cross** axis, `center` does both |
+| `ui:card` | `variant=inset\|outline` | any element |
+| `ui:text` | `variant=title\|subtitle\|muted\|strong\|code` | any element |
+| `ui:badge` | `variant=brand\|danger\|warn\|success` | any element |
+| `ui:button` | `variant=primary\|ghost\|danger\|icon`, `block` | any element (incl. `<a>`) |
+| `ui:divider`, `ui:spacer` | `size=1..8` on spacer | any element; separation & rhythm |
+| `ui:icon` | `name=check\|x\|plus\|search\|chevron-down\|dot\|menu` | **`<svg>` only** |
+| `ui:image` | `ratio="3/2"` | **`<img>` only**; aspect ratio + error-fallback class |
+| `ui:input` / `ui:textarea` / `ui:select` / `ui:checkbox` | — | **`<input>` / `<textarea>` / `<select>` / `<input>` only** |
+| `ui:field` | — | any element |
+| `ui:tabs` | — | any element; needs `role=tablist/tab/tabpanel` markup with arrow-key **and Home/End** navigation |
 
 Theming is CSS custom properties — override `--brand`, `--bg`, `--ink`, `--muted`,
 `--line`, `--danger`, `--r` (radius), `--ui-gap-*`, `--ui-text-*` in a `theme.css`.
@@ -304,15 +318,43 @@ leonui compiles onto the platform rather than around it:
 
 ## Debugging
 
-- Every runtime warning lands in **`window.__ui.warns`** — unknown verbs and unknown
-  `ui:*` attributes are warned *by name*, so typos surface instead of silently doing
-  nothing. Duplicate `ui:each` keys warn there too.
+- Every runtime warning lands in **`window.__ui.warns`** — unknown verbs, unknown `ui:*`
+  attributes, out-of-vocabulary prop values, wrong enhancer hosts and misspelled prop
+  names are all warned *by name*, so typos surface instead of silently doing nothing.
+  Duplicate `ui:each` keys warn there too.
 - Failures are isolated per element during attach: one malformed attribute cannot break
   the page.
 - The debug hook `window.__ui` also exposes the verb catalog (`__ui.verbs`), the
   declaration-literal grammar (`__ui.coerce`), and the signal internals the tests use
-  (`__ui.subCount`, `__ui.findScope`, `__ui.parse`). `__ui.verbs` is derived from
-  `src/fx.ts`, so it cannot drift from the implemented catalog.
+  (`__ui.subCount`, `__ui.findScope`, `__ui.parse`). `__ui.verbs` is derived from the one
+  vocabulary table (`src/vocab.ts`), so it cannot drift from the implemented catalog.
+
+## Verifying a page
+
+The runtime warns in a console nobody is watching, and only about elements that actually
+attached. `ui check` reads the markup instead — same findings, no browser, no dev server,
+`file:line:column`, and a non-zero exit so it works as a gate:
+
+```bash
+bunx leonui check                 # every *.html under the cwd
+bunx leonui check pages/ docs/    # directories
+bunx leonui check page.html --json
+```
+
+It reports unknown `ui:*` names (with a `did you mean`), unknown or malformed verbs and bad
+verb arguments, prop values outside their closed set, enhancers on the wrong host,
+misspelled prop names, expressions that fail to parse or call a non-whitelisted function,
+malformed `ui:state`/`ui:computed`/`ui:each`/`ui:model`/`ui:key`, and duplicate attributes
+(HTML silently drops the later one).
+
+It is honest about its limits: nested path segments (`task.tittle` is not statically
+decidable), cross-file scope from `ui:use`, whether a selector matches, and anything
+depending on remote data all need a running page. The checker and the runtime read the
+**same** table (`src/vocab.ts`), so they can never disagree — `tests/check.test.ts` lints
+the whole shipped gallery and asserts zero findings, which is the false-positive guard.
+
+A clean `ui check` plus an empty `window.__ui.warns` is the bar for "it came out as
+expected".
 
 ## Agent-first distribution
 
@@ -340,8 +382,11 @@ CDP. **`benchmark.md` is the only place measured numbers live**, because every r
 them; this section deliberately summarises rather than restates.
 
 The one figure that is architectural rather than timing noise: the complete leonui runtime
-minifies to **23.2 KB (8.7 KB gzipped)**, and the optional stylesheet adds 9.9 KB
-(2.7 KB gzipped) — less, together, than the smallest runtime it is compared against.
+minifies to **27.8 KB (10.4 KB gzipped)**, and the optional stylesheet adds 9.9 KB
+(2.7 KB gzipped) — less, together, than the smallest runtime it is compared against. The
+vocabulary pass that made malformed markup a named warning instead of a silent no-op cost
+~4.6 KB minified of that; the same table is what `ui check` reads, so the two can never
+disagree.
 
 The benchmark's own honest reading, which this README endorses rather than edits around:
 
@@ -376,17 +421,19 @@ bun run dev        # http://localhost:4700
 ```bash
 bun install              # deps: typescript + @types/bun (+ react/vue/alpine for comparisons)
 bun run dev              # dev server on :4700 — pages, docs, mock API (PORT env overrides)
-bun run build            # bundle src/ → dist/leonui.js (ESM) + dist/leonui.iife.js, minified
+bun run build            # bundle src/ → dist/leonui.js + dist/leonui.iife.js + dist/cli.mjs
 bun run typecheck        # tsc --noEmit — must stay clean
-bun test tests/          # 71 tests across 11 files, real Chromium over CDP
+bun run check            # ui check over the cwd — browser-free markup verification
+bun test tests/          # the full suite, real Chromium over CDP (prints its own count)
 bun run bench            # regenerate benchmark.md from measured runs
 ```
 
 The test suite drives a locally cached Chromium headless shell over the DevTools protocol
 with a dependency-free harness (`tests/harness.ts`): e2e for every component variant and
 verb, CSS contracts (tokens, dark-mode flip, cascade-layer precedence), framework
-comparison parity, accuracy/regression guarantees, skill/grammar consistency, and an agent
-emission audit. Artifacts land in `tests/artifacts/`.
+comparison parity, accuracy/regression guarantees, vocabulary validation, the browser-free
+checker, skill/grammar consistency, and an agent emission audit. Artifacts land in
+`tests/artifacts/`.
 
 Two environment notes for running the suite on a machine where the Chromium download is
 unavailable: set `UI_CHROME_BIN` to a Chrome/Chromium binary, and set
@@ -409,6 +456,8 @@ GET    /api/boom           -> always 500 (error-state testing)
 ```
 src/
   types.ts       Signal, Scope, Ast (discriminated union), Verb — the internals contract
+  vocab.ts       the closed vocabulary, stated once: names, aspects, verbs, icons,
+                 enhancer prop value sets + hosts, and the validators both halves read
   signals.ts     cells, ancestor-chain scoping, dependency tracking, observable warns
   parser.ts      whitelist expression language — typed AST, no eval, ever
   state.ts       ui:state declarations (incl. GET remote cells) + ui:computed
@@ -417,6 +466,8 @@ src/
   sortable.ts    ui:sortable — drag-to-reorder, immutable array rewrite
   enhancers.ts   structural attributes → shipped classes, a11y, platform wiring
   fx.ts          closed effect-verb catalog + onfail/onsuccess response gates
+  check.ts       browser-free static checker — the same findings, without a browser
+  cli.ts         `ui check` — directory walk, text/JSON output, exit code
   scan.ts        attach passes (isolated) + ui:use template components + attach() API
   boot.ts        full-tree boot + window.__ui debug hook
   cdn.ts         classic-script entry → dist/leonui.iife.js (window.leonui)
@@ -424,7 +475,8 @@ src/
   index.ts       public entry — importing it boots the runtime
   ui.css         shipped stylesheet: @layer ui.tokens, ui.base
 serve/           Bun.serve dev server: static pages + mock REST API
-tests/           CDP harness + e2e, accuracy, comparisons, grammar/skill/docs/sortable/audit suites
+tests/           CDP harness + e2e, accuracy, comparisons, vocabulary, checker,
+                 grammar/skill/docs/sortable/audit suites
 bench/           the four benchmark pages + pre-bundled vendor runtimes
 scripts/         bench.ts — regenerates benchmark.md + tests/artifacts/
 pages/           component gallery (served at /pages/)
@@ -464,7 +516,8 @@ new behavior ships with a test in `tests/`.
 
 ## Status and known gaps
 
-Pre-1.0 (`v0.2.1`). The core is exercised by 71 green tests over real Chromium. Known
+Pre-1.0 (`v0.2.1`). The core is exercised by a green suite over real Chromium (plus a
+browser-free half for the checker and the vocabulary table). Known
 v0 gaps are tracked and honest: **reparenting re-resolution**, **shadow-DOM scope
 crossing**, and **SSR** are not yet solved. Subscriber disposal on row removal *was* on
 this list and is now solved — `ui:each` records the subscriptions each row's binds create

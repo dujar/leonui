@@ -1,16 +1,13 @@
-/* enhancers.ts — structural attributes → shipped classes, a11y, platform wiring */
+/* enhancers.ts — structural attributes → shipped classes, a11y, platform wiring.
+ *
+ * Every enhancer's bare props and their value vocabularies live in vocab.ts, not
+ * here: this file applies them, it does not decide what is legal. Values are
+ * validated before they are applied, so a wrong value is a named warning and a
+ * fallback to the default — never a class nothing styles. */
 import { warn } from './signals.ts';
+import { ICONS, enhancerAttrProblems, enhancerProblems, enhancerRejects, rejectedProps } from './vocab.ts';
 
 let anchorSeq = 0;
-const ICONS: Record<string, string> = {
-  check: 'M20 6 9 17l-5-5',
-  x: 'M18 6 6 18M6 6l12 12',
-  'chevron-down': 'm6 9 6 6 6-6',
-  search: 'M21 21l-4.34-4.34M17 10.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z',
-  plus: 'M12 5v14M5 12h14',
-  dot: 'M12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z',
-  menu: 'M4 6h16M4 12h16M4 18h16',
-};
 
 export function injectSprite(): void {
   if (document.getElementById('ui-icons')) return;
@@ -93,7 +90,15 @@ export const ENHANCERS: Record<string, Enhancer> = {
     injectSprite();
     el.classList.add('ui-icon');
     const name = el.getAttribute('name');
-    el.innerHTML = `<use href="#ui-i-${name}"></use>`;
+    // an unknown name was already warned about and dropped by attachEnhancers;
+    // bail rather than point a <use> at a symbol that does not exist
+    if (!name || !Object.hasOwn(ICONS, name)) return;
+    // DOM API, not innerHTML: the symbol id is built from an attribute, and
+    // string-building markup from attribute data is the one place this runtime
+    // would hand a value to the HTML parser
+    const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+    use.setAttribute('href', '#ui-i-' + name);
+    el.replaceChildren(use);
     el.setAttribute('aria-hidden', 'true');
   },
   'ui:image': el => {
@@ -165,7 +170,24 @@ export function attachEnhancers(el: Element, attrs: Attr[] = [...el.attributes])
     // hasOwn, not `in`: plain-object lookup would treat `toString`/`constructor`
     // as enhancers and call Object.prototype members on the element
     if (!Object.hasOwn(ENHANCERS, a.name)) continue;
-    try { ENHANCERS[a.name]!(el); }
-    catch (e) { warn((e as Error).message); }
+    try {
+      // Validate BEFORE applying, from the one table in vocab.ts. Two failure
+      // modes, deliberately different (see enhancerRejects):
+      //   - a rejected *value* is named and dropped, so the enhancer falls back
+      //     to its default instead of emitting a class nothing styles;
+      //   - a wrong *host* / missing required native attribute skips the
+      //     enhancer entirely — there is no default host to fall back to.
+      // Either way it is a named warning, never the silent no-op that made
+      // `variant="nonsense"` and `gap="99"` indistinguishable from working markup.
+      const host = el.tagName.toLowerCase();
+      const has = (attr: string): boolean => el.hasAttribute(attr);
+      const get = (prop: string): string | null => el.getAttribute(prop);
+      const skip = enhancerRejects(a.name, { host, has }) !== null;
+      for (const msg of enhancerProblems(a.name, get, { host, has })) warn(msg);
+      for (const msg of enhancerAttrProblems(a.name, attrs.map(x => x.name))) warn(msg);
+      if (skip) continue;
+      for (const prop of rejectedProps(a.name, get)) el.removeAttribute(prop);
+      ENHANCERS[a.name]!(el);
+    } catch (e) { warn((e as Error).message); }
   }
 }

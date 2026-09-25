@@ -3,19 +3,18 @@ import type { Verb } from './types.ts';
 import { resolvePath, readPath, writeRef, setPath, scopes, warn } from './signals.ts';
 import { safeEval } from './parser.ts';
 import { fetchCell } from './state.ts';
+import { VERB_NAMES } from './vocab.ts';
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-/* ---------- the closed catalog, stated once ---------- */
-/** effect verbs — rule 6 in naming.md. Order is the order they are documented in. */
-export const VERBS = [
-  'set', 'toggle', 'call', 'toast', 'nav', 'refetch', 'prompt', 'confirm', 'focus', 'reset', 'delay',
-] as const;
-/** response gates: they read the last call's outcome, they are not verbs (naming.md §6) */
-export const GATES = ['onfail', 'onsuccess'] as const;
+/* ---------- the closed catalog ----------
+ * The list itself lives in vocab.ts — the one table the runtime and the
+ * browser-free `ui check` checker both read, so a verb cannot be implemented
+ * here and undocumented there. This file owns parsing and execution. */
+export { VERBS, GATES } from './vocab.ts';
 /** the catalog as a lookup record — `__ui.verbs`, and anything else that needs the list */
 export const VERB_CATALOG: Record<string, 1> = Object.fromEntries(
-  [...VERBS, ...GATES].map(v => [v, 1 as const]),
+  VERB_NAMES.map(v => [v, 1 as const]),
 );
 
 export function parseVerb(src: string): Verb | null {

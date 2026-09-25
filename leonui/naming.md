@@ -41,7 +41,9 @@ tradition, shorter than `effect`, unambiguous inside `ui:`. Satellites read as
 **Value sentinels** (things written inside a `ui:state` value slot, like `GET /url`)
 are UPPERCASE protocol words, one per named platform capability, declared in the
 vocabulary table. `GET` (fetch) is the first; a second transport (e.g. `WS`) enters
-through this rule, never as a new family.
+through this rule, never as a new family. A sentinel with no operand (`n: GET`) is a
+named error, never the literal string `"GET"` — the two readings are one character apart
+and only one of them was intended.
 
 New top-level families are **strongly discouraged**: growth extends existing families
 (new aspects, new verbs, new enhancers, new sentinels). A new family requires a
@@ -67,11 +69,18 @@ a custom element, or it does not belong in a bind.
 what the user *sees* (never the implementation: `ui:flexbox` is a bug). An enhancer's
 props are **bare adjectives/nouns** (`gap`, `align`, `wrap`, `center`, `variant`,
 `block`, `ratio`, `name`, `anchor`, `placement`, `size`) — exactly as if the enhancer
-were a native element: `<stack gap="2">` reads like `<input value="…">`. Props must be data-only (serializable). The vocabulary table lists each enhancer's props; a **host
-restriction** must additionally be stated there for any enhancer whose bare prop name
+were a native element: `<stack gap="2">` reads like `<input value="…">`. Props must be data-only (serializable). The vocabulary table lists each enhancer's props **and the value
+vocabulary of each one** — a closed set, an inclusive integer range, or a pattern — and a
+**host restriction** must additionally be stated there for any enhancer whose bare prop name
 collides with an attribute HTML already gives meaning to (a `name` prop may live on a
 decorated `<div>`, never on an `<input>`) — a rule nothing states is not a rule. Axis-carrying props (`align`) must document
 which axis they move — `ui:row align` moves the **cross** axis; `center` does both axes.
+
+Every value vocabulary is **enforced in one place** (`src/vocab.ts`) and read by both halves
+of the contract: the runtime warns at attach time and the browser-free `ui check` reports
+the same finding before render. A value outside its set falls back to the default; a wrong
+host does not run at all. Neither is silent, because a value nothing understands is
+indistinguishable from a bug in the author's markup.
 
 ## 5. Flags: state what becomes true
 
@@ -83,8 +92,9 @@ props (rule 4).
 ## 6. Verbs: one English word, mapped to a platform capability
 
 `set toggle call toast nav refetch prompt confirm focus reset delay`
-(11 verbs — the same list, in the same order, as `VERBS` in `src/fx.ts` and the catalog in
-`skill/SKILL.md`; `src/fx.ts` is the single source, `window.__ui.verbs` is derived from it).
+(11 verbs — the same list, in the same order, as `VERBS` in `src/vocab.ts` and the catalog
+in `skill/SKILL.md`; `src/vocab.ts` is the single source, re-exported by `src/fx.ts`, and
+`window.__ui.verbs` is derived from it).
 A verb is (a) one lowercase English verb or verb+particle, (b) implemented on top of a
 **named platform capability** (fetch, popover, view transitions, focus()) or a whitelisted
 pure builtin, (c) documented with its failure story. Unknown verbs are a named error,
