@@ -80,11 +80,11 @@ errors, never silent no-ops.
 The framework's primary authors are coding agents, so the agent contract ships *with the package*:
 
 - [`skill/SKILL.md`](skill/SKILL.md) — the complete authoring grammar (attribute families, 12 effect verbs, expression whitelist, enhancer variants, gotchas, mock API routes). Included in the npm `files` field, so installing `leonui` installs the skill.
-- Install it into your agent tool by copying to its skill directory (e.g. `.zcode/skills/leonui/SKILL.md`, `.claude/skills/leonui/SKILL.md`), or point agents at [`AGENTS.md`](../AGENTS.md) at the repo root, which routes them to the skill before they can reach for React.
-- `tests/skill.test.ts` asserts the workspace-discovered copy and the packaged copy never drift.
+- In this repo, the agent-agnostic discovery copy lives at [`skills/leonui/SKILL.md`](../skills/leonui/SKILL.md) (repo root, so any tool can find it). Install it into your agent tool by copying to its skill directory (e.g. `.zcode/skills/leonui/SKILL.md`, `.claude/skills/leonui/SKILL.md`) — agent-specific dirs are gitignored, local installs only. Or point agents at [`AGENTS.md`](../AGENTS.md) at the repo root, which routes them to the skill before they can reach for React.
+- `tests/skill.test.ts` asserts the repo-root discovery copy and the packaged copy never drift.
 
 ## Design lineage
 
 - `ui/` — the plain-JS prototype (37-test green, kept as reference).
-- Product/design history: `.agent-workbench/product/` (idea.md, prototype-runtime.md, judgment rounds) and `.agent-workbench/knowledge/browser-apis.md` (the verified 2026 platform matrix this runtime compiles onto).
+- Product/design history: `.agent-workbench/product/` (idea.md, prototype-runtime.md, judgment rounds) and `.agent-workbench/knowledge/browser-apis.md` (the verified 2026 platform matrix this runtime compiles onto). Local-only and gitignored.
 - Known v0 gaps (tracked): subscriber disposal on row removal, reparenting re-resolution, shadow-DOM scope crossing, SSR.
