@@ -1,0 +1,9 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>CDN consumption — classic script tag</title>
+<link rel="stylesheet" href="/src/ui.css"></head>
+<body ui:state="msg: 'hello from the cdn build'">
+  <p id="out" ui:bind="text: msg"></p>
+  <button id="flip" ui:fx="click: set msg = 'flipped'">Flip</button>
+  <!-- the CDN way: one classic script, no modules, no importmap -->
+  <script src="/dist/leonui.iife.js"></script>
+</body></html>

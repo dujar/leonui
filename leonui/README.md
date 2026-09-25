@@ -6,6 +6,40 @@ A declarative UI runtime for plain HTML, on **Bun + TypeScript**.
 
 Agents author plain HTML plus four attribute families; a ~30 KB typed runtime provides signals with ancestor-chain scoping, auto-tracked fine-grained binds, a closed effect-verb catalog, and keyed lists — compiled onto verified browser platform APIs (popover + invoker commands, anchor positioning, view transitions, `light-dark()`, `field-sizing`, `moveBefore()`). No build step for authors, no vdom, no re-render.
 
+## Install
+
+```bash
+bun add leonui        # or: npm install leonui
+```
+
+Or straight from a CDN — no install, no build, two tags:
+
+```html
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leonui@0/src/ui.css">
+<script src="https://cdn.jsdelivr.net/npm/leonui@0/dist/leonui.iife.js"></script>
+```
+
+The classic-script build boots the runtime on load (and exposes `window.leonui` with
+`attach`, `sig`, `setPath`, `warns`, … for custom-element authors). Prefer ESM?
+
+```html
+<script type="module">
+  import { attach } from 'https://cdn.jsdelivr.net/npm/leonui@0/dist/leonui.js';
+</script>
+```
+
+(`unpkg.com/leonui@0/…` works identically.) Then author HTML:
+
+```html
+<body ui:state="name: 'world'">
+  <p>Hello, <b ui:bind="text: name"></b>!</p>
+  <input ui:model="name">
+</body>
+```
+
+The `skill/` folder ships in the package — the same grammar written as an agent-facing
+contract; copy it into your agent tool's skills directory.
+
 ## Commands
 
 ```bash

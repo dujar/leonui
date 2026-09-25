@@ -1,15 +1,21 @@
 {
   "name": "leonui",
   "version": "0.1.0",
-  "description": "Typed UI runtime: HTML is the schema, the element prototypes are the runtime, the browser is the framework.",
+  "description": "Typed reactive UI runtime: author plain HTML + ui:* attributes \u2014 signals, keyed lists, closed effect-verb catalog, no build step, no vdom. Agent-first: ships with its own skill.",
   "type": "module",
   "module": "./dist/leonui.js",
   "exports": {
-    ".": "./dist/leonui.js",
-    "./ui.css": "./src/ui.css"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/leonui.js",
+      "default": "./dist/leonui.iife.js"
+    },
+    "./ui.css": "./src/ui.css",
+    "./skill": "./skill/SKILL.md",
+    "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "bun build ./src/index.ts --outfile ./dist/leonui.js --target=browser --minify",
+    "build": "bun build ./src/index.ts --outfile ./dist/leonui.js --target=browser --minify && bun build ./src/cdn.ts --outfile ./dist/leonui.iife.js --target=browser --minify",
     "typecheck": "tsc --noEmit",
     "dev": "bun run serve/serve.ts",
     "test": "bun test tests/",
@@ -28,8 +34,31 @@
     "src",
     "skill",
     "pages",
-    "serve",
-    "scripts",
-    "README.md"
-  ]
+    "README.md",
+    "LICENSE"
+  ],
+  "author": "dujar",
+  "license": "MIT",
+  "keywords": [
+    "ui",
+    "html",
+    "declarative",
+    "reactive",
+    "signals",
+    "no-build",
+    "agent",
+    "ai",
+    "web-components",
+    "lightweight"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dujar/leonui.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dujar/leonui/issues"
+  },
+  "homepage": "https://github.com/dujar/leonui#readme",
+  "types": "./dist/index.d.ts",
+  "sideEffects": true
 }
