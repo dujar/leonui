@@ -383,7 +383,9 @@ that both guarantees hold.
 
 The runtime warns in a console nobody is watching, and only about elements that actually
 attached. `ui check` reads the markup instead — same findings, no browser, no dev server,
-`file:line:column`, and a non-zero exit so it works as a gate:
+`file:line:column`, and an exit status that tells the three outcomes apart: `0` nothing to
+report, `1` an error was found, `2` a usage error (an unknown option, or a path that does
+not exist — a typo in a gate must not read as a pass):
 
 ```bash
 bunx leonui check                 # every *.html under the cwd

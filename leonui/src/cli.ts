@@ -33,12 +33,15 @@ reports
   unknown verbs, malformed verbs, bad verb arguments
   enhancer props outside their closed value set
   enhancers on the wrong host element
+  attributes whose required partner is missing (ui:key without ui:each, ui:model on a non-control)
   expressions that do not parse, and calls to non-whitelisted functions
   malformed ui:state / ui:computed / ui:each / ui:model / ui:key declarations
   duplicate attributes (HTML silently drops the later one)
 
 exit status
-  1 if any error was found, 0 otherwise
+  0  nothing to report
+  1  an error was found
+  2  usage error — unknown option, or a path that does not exist
 
 not checked (needs a running page): nested path segments, selector matches,
 remote responses. See skill/SKILL.md for the runtime half of verification.`;
@@ -64,6 +67,12 @@ function collect(target: string, out: string[]): void {
 
 function main(): number {
   const argv = process.argv.slice(2);
+  // `leonui check …` arrives with the subcommand in argv, and it is not a path.
+  // Left in, the no-path form resolved "check" as a directory that does not
+  // exist, scanned nothing and printed "checked 0 files" with exit 0 — a
+  // verifier that verified nothing, which is the exact failure mode this CLI
+  // exists to eliminate. It only ever appeared to work when a path was passed.
+  if (argv[0] === 'check') argv.shift();
   const flags = new Set(argv.filter(a => a.startsWith('-')));
   const targets = argv.filter(a => !a.startsWith('-'));
 
@@ -76,8 +85,20 @@ function main(): number {
     return 2;
   }
 
+  // A path that does not exist is a usage error, not a file with nothing wrong
+  // in it. collect() used to skip it in silence, so a typo in a CI gate read as
+  // a pass.
   const files: string[] = [];
-  for (const t of targets.length ? targets : ['.']) collect(resolve(t), files);
+  const missing: string[] = [];
+  for (const t of targets.length ? targets : ['.']) {
+    const abs = resolve(t);
+    if (statSync(abs, { throwIfNoEntry: false })) collect(abs, files);
+    else missing.push(t);
+  }
+  if (missing.length) {
+    console.error(`leonui check: no such file or directory: ${missing.map(m => `"${m}"`).join(', ')}`);
+    return 2;
+  }
   files.sort();
 
   const findings: Finding[] = [];

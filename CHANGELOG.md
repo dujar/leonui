@@ -65,6 +65,15 @@ animation a first-class, verifiable part of the grammar.
 
 ### Fixed
 
+- **`ui check` verified nothing when invoked the documented way.** The CLI never stripped
+  its own `check` subcommand from `argv`, so the no-path form — `bunx leonui check`, the
+  form the skill tells an agent to run before saying it is done — treated the word `check`
+  as a directory, found nothing, printed `checked 0 files` and exited 0. It only ever
+  appeared to work when a path was passed, which is why every existing CLI test (all of
+  which pass a directory) missed it: the stray target resolved to a non-existent directory
+  and was skipped in silence. A path that does not exist is now a usage error (`exit 2`)
+  rather than a file with nothing wrong in it, so a typo in a CI gate cannot read as a pass
+  either. Two tests pin both halves.
 - **The reveal animated backwards on load.** A transition runs when the *new* computed style
   declares one, so declaring it on the armed state made arming animate too: every reveal
   element slid and faded *out* before sliding in. Caught by sampling the computed

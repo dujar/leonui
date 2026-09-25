@@ -242,10 +242,13 @@ test('check: an unbalanced tag does not throw', () => {
 
 /* ================= the CLI ================= */
 
-function run(args: string[]): { code: number; out: string; err: string; all: string } {
+function run(args: string[], cwd?: string): { code: number; out: string; err: string; all: string } {
   const r = Bun.spawnSync({
     cmd: [process.execPath, join(pkg, 'src/cli.ts'), ...args],
     env: { ...process.env, NO_PROXY: '127.0.0.1,localhost' },
+    // cwd matters for the no-path form: the default target is ".", so a test of
+    // the default target has to control what "." is.
+    ...(cwd ? { cwd } : {}),
   });
   const out = r.stdout.toString();
   const err = r.stderr.toString();
@@ -308,6 +311,47 @@ test('cli: --help and --version do not scan anything, an unknown flag is rejecte
   const bogus = run(['check', '--nope']);
   assert.equal(bogus.code, 2, 'a usage error is distinguishable from a finding');
   assert.match(bogus.err, /unknown option "--nope"/);
+});
+
+test('cli: `check` is the subcommand, not a path to scan', () => {
+  // Every other CLI test passes an explicit directory, which is exactly why this
+  // survived: with a path present the stray "check" target resolved to a
+  // non-existent directory, was skipped in silence, and the run looked fine.
+  // Alone, it made the documented no-path form — `bunx leonui check` — scan
+  // nothing at all and exit 0.
+  const dir = mkdtempSync(join(tmpdir(), 'uicheck-'));
+  try {
+    writeFileSync(join(dir, 'bad.html'), `<div ui:stak gap="99"></div>\n`);
+
+    const noPath = run(['check'], dir);
+    assert.equal(noPath.code, 1, 'the default target is the cwd, and this page has an error');
+    assert.match(noPath.all, /checked 1 file: 1 error/, 'it actually scanned the page');
+    assert.match(noPath.out, /bad\.html:1:6: error: unknown attribute "ui:stak"/);
+
+    // and the explicit form still means the same thing
+    const explicit = run(['check', '.'], dir);
+    assert.equal(explicit.code, 1);
+    assert.match(explicit.all, /checked 1 file: 1 error/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('cli: a path that does not exist is a usage error, not a clean pass', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'uicheck-'));
+  try {
+    writeFileSync(join(dir, 'ok.html'), `<div ui:stack gap="2"></div>\n`);
+
+    // A typo in a CI gate used to read as success: the missing target was
+    // skipped, the remaining files were clean, and the exit status was 0.
+    const missing = run(['check', 'pages/typo'], dir);
+    assert.equal(missing.code, 2, 'distinguishable from both a finding (1) and a pass (0)');
+    assert.match(missing.err, /no such file or directory: "pages\/typo"/);
+    assert.equal(missing.out, '', 'and it reports no findings, because it read nothing');
+
+    // one good path alongside one bad one is still a usage error, not a partial pass
+    const mixed = run(['check', 'ok.html', 'nope'], dir);
+    assert.equal(mixed.code, 2);
+    assert.match(mixed.err, /no such file or directory: "nope"/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 /* ================= the gallery ================= */
