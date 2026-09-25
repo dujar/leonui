@@ -1,5 +1,5 @@
 /* cdn.test.ts — the distribution contract: a CLASSIC script tag (no modules)
- * boots the runtime and exposes window.leonxstream-style API as window.leonui. */
+ * boots the runtime and exposes the public API as window.leonui. */
 import { test, beforeAll, afterAll } from 'bun:test';
 import assert from 'node:assert/strict';
 import { app } from '../serve/app.ts';

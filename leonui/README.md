@@ -351,7 +351,7 @@ bun install              # deps: typescript + @types/bun (+ react/vue/alpine for
 bun run dev              # dev server on :4700 — pages, docs, mock API (PORT env overrides)
 bun run build            # bundle src/ → dist/leonui.js (ESM) + dist/leonui.iife.js, minified
 bun run typecheck        # tsc --noEmit — must stay clean
-bun test tests/          # 60 tests across 9 files, real Chromium over CDP
+bun test tests/          # 61 tests across 9 files, real Chromium over CDP
 bun run bench            # regenerate benchmark.md from measured runs
 ```
 
@@ -385,7 +385,9 @@ src/
   sortable.ts    ui:sortable — drag-to-reorder, immutable array rewrite
   enhancers.ts   structural attributes → shipped classes, a11y, platform wiring
   fx.ts          closed effect-verb catalog + onfail/onsuccess response gates
-  scan.ts        per-element attach passes (isolated — one bad node cannot kill the page)
+  sortable.ts    the ui:sortable drag primitive (Tier-3: author declares what)
+  scan.ts        attach passes (isolated) + ui:use template components + attach() API
+  cdn.ts         classic-script entry → dist/leonui.iife.js (window.leonui)
   boot.ts        full-tree boot + window.__ui debug hook
   cdn.ts         IIFE build entry: boots on load, exposes window.leonui
   index.ts       public entry — importing it boots the runtime

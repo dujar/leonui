@@ -15,7 +15,6 @@ type Frameworks = readonly Framework[];
 /* ---------- benchmark: identical ops, identical measurement ---------- */
 
 interface OpResult { runs: number[]; median: number }
-interface FrameResult { mount: number; create1000: OpResult; update: OpResult; replace: OpResult; remove: OpResult }
 
 
 const server = Bun.serve({ port: 0, fetch: app.fetch });
@@ -24,9 +23,6 @@ const browser = await Browser.launch();
 
 const page = async (fw: Framework): Promise<Page> =>
   browser.newPage(base).then(p => p.goto(`/bench/${fw}.html`, "document.readyState === 'complete' && window.__benchReadyAt > 0"));
-
-interface OpResult { runs: number[]; median: number }
-interface FrameResult { mount: number; create1000: OpResult; update: OpResult; replace: OpResult; remove: OpResult }
 
 const measure = async (p: Page, op: string, prime: string, warmups = 2, runs = 5): Promise<OpResult> => {
   for (let i = 0; i < warmups; i++) {

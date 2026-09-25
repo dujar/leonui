@@ -45,7 +45,7 @@ export function attachUse(el: Element): void {
   const scope: Scope = { signals: new Map(), meta: new Map() };
   scopes.set(el, scope);
   for (const a of [...el.attributes]) {
-    if (SKIP_PROPS.has(a.name) || a.name.startsWith('on')) continue;
+    if (SKIP_PROPS.has(a.name) || a.name.startsWith('on') || a.name.startsWith('data-') || a.name.startsWith('aria-')) continue;
     scope.signals.set(a.name, sig(coerce(a.value)));
   }
   el.appendChild((tpl as HTMLTemplateElement).content.cloneNode(true));

@@ -36,7 +36,7 @@ export function injectSprite(): void {
 }
 
 type Enhancer = (el: Element) => void;
-const align = (el: HTMLElement, horizontal: boolean): void => {
+const align = (el: HTMLElement): void => {
   const a = el.getAttribute('align');
   if (a === 'between') el.style.justifyContent = 'space-between';
   else if (a) el.style.alignItems = a;
@@ -44,7 +44,6 @@ const align = (el: HTMLElement, horizontal: boolean): void => {
     el.style.alignItems = 'center';
     el.style.justifyContent = 'center';
   }
-  void horizontal;
 };
 const gap = (el: HTMLElement): void => {
   const g = el.getAttribute('gap');
@@ -55,12 +54,12 @@ export const ENHANCERS: Record<string, Enhancer> = {
   'ui:stack': el => {
     el.classList.add('ui-stack');
     gap(el as HTMLElement);
-    align(el as HTMLElement, false);
+    align(el as HTMLElement);
   },
   'ui:row': el => {
     el.classList.add('ui-row');
     gap(el as HTMLElement);
-    align(el as HTMLElement, true);
+    align(el as HTMLElement);
     if (el.hasAttribute('wrap')) (el as HTMLElement).style.flexWrap = 'wrap';
   },
   'ui:card': el => {

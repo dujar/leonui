@@ -93,7 +93,7 @@ A component is a subtree: markup + state + behavior together. Three reuse mechan
    </template>
    <div ui:use="#stat-tile" label="Users" start="120"></div>
    ```
-   Host attributes become **prop signals** (coerced like `ui:state`; `id`/`class`/`style` stay layout, not props). `ui:state` inside the template is **per-instance**; behavior attaches per clone. Templates may nest `ui:use`. Live example: `/docs/examples/component-use.html`.
+   Host attributes become **prop signals** (coerced like `ui:state`; `id`/`class`/`style` stay layout, and `data-*`/`aria-*` stay native lanes — none are props). `ui:state` inside the template is **per-instance**; behavior attaches per clone. Templates may nest `ui:use`. Live example: `/docs/examples/component-use.html`.
 3. **Custom elements (for distribution):** the runtime exports `attach` — a custom element injects its `ui:*` markup, sets a scope on itself with `sig` signals from its attributes, and calls `attach(this)`. Consumers write `<x-counter label="votes" start="5">`. Live example: `/docs/examples/component-element.html` (+ `component-element.js`).
 
 Styling half of reuse: variants (`variant="primary|ghost|…"`) and tokens — a component varies through the catalog, never bespoke CSS.
@@ -115,7 +115,7 @@ shipped `ui:*` name.
 bun run dev            # serve pages + mock API (PORT env overrides; default 4700)
 bun run build          # bundle src/ → dist/leonui.js (minified)
 bun run typecheck      # tsc --noEmit (must stay clean)
-bun test tests/        # 60 tests: e2e + comparisons + grammar guarantees (real Chromium via CDP)
+bun test tests/        # 61 tests: e2e + comparisons + grammar guarantees (real Chromium via CDP)
 bun run bench          # regenerate benchmark.md from measured runs
 ```
 

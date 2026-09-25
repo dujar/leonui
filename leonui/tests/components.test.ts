@@ -56,6 +56,29 @@ t('components: custom element wraps the runtime — behavior included', async ()
   await p.close();
 });
 
+t('components: ui:use props — id/class/style/data-*/aria-* are not prop signals', async () => {
+  const p = await browser.newPage(base).then(x => x.goto('/pages/index.html', "document.readyState === 'complete' && window.__uiReady === true"));
+  await p.eval(`(() => {
+    const tpl = document.createElement('template');
+    tpl.id = 'probe-tpl';
+    tpl.innerHTML = '<p ui:bind="text: pick"></p>';
+    document.body.append(tpl);
+    const host = document.createElement('div');
+    host.id = 'probe-host';
+    host.setAttribute('ui:use', '#probe-tpl');
+    host.setAttribute('pick', 'chosen');           // a real prop
+    host.setAttribute('data-screen', 'x');          // native lane — must NOT become a signal
+    host.setAttribute('aria-label', 'probe');       // native lane
+    host.setAttribute('style', 'color: inherit');   // layout, not a prop
+    document.body.append(host);
+  })()`);
+  await p.eval(`import('/dist/leonui.js').then(m => m.attach(document.getElementById('probe-host')))`);
+  assert.equal(await p.eval<string>(`document.querySelector('#probe-host p').textContent`), 'chosen', 'pick prop works');
+  const sigs = await p.eval<string[]>(`[...window.__ui.scopes.get(document.getElementById('probe-host')).signals.keys()]`);
+  assert.deepEqual(sigs, ['pick'], 'only the prop became a signal');
+  await p.close();
+});
+
 t('components: docs page renders with both examples embedded', async () => {
   const res = await fetch(base + '/docs/components.html');
   assert.equal(res.status, 200);
