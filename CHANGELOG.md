@@ -5,6 +5,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/); versioning foll
 
 ## [Unreleased]
 
+## [0.2.1] — 2026-09-25
+
+### Added
+- `docs/` now ships in the npm package — the tutorials, component gallery
+  examples, and component files are readable offline and loadable from CDNs
+  (jsDelivr sends CORS headers, so cross-file `ui:use` works straight from
+  the CDN).
+
 ## [0.2.0] — 2026-09-25
 
 ### Added
