@@ -8,16 +8,46 @@ import { attachEach } from './each.ts';
 import { attachBinds, attachModel } from './binds.ts';
 import { attachEnhancers } from './enhancers.ts';
 import { attachFx } from './fx.ts';
-import { ALL_UI_ATTRS, CORE_ATTRS, ENHANCER_NAMES, isBindAttr, suggest } from './vocab.ts';
+import { ALL_UI_ATTRS, CORE_ATTRS, CORE_ATTRS_WITH_REQUIREMENTS, ENHANCER_NAMES, attrRejects, coreAttrProblems, isBindAttr, requirementProblems, suggest } from './vocab.ts';
 
 /** the known ui:* vocabulary — anything else on an element is a typo worth naming.
  * The list comes from vocab.ts, which is also what `ui check` reads, so a name is
  * never legal in one and illegal in the other. */
 const KNOWN_UI_ATTRS = new Set<string>([...CORE_ATTRS, ...ENHANCER_NAMES]);
 
+/** core `ui:*` attributes that need a particular host or a partner attribute.
+ * Enhancers carry theirs in their spec, checked inside `attachEnhancers`; this is
+ * the other half of the same contract, and both halves read vocab.ts. */
+const REQUIREMENT_ATTRS = new Set<string>(CORE_ATTRS_WITH_REQUIREMENTS);
+
 /** one attribute array per element: checkVocab / enhancers / binds all read from
  * this snapshot instead of each re-materialising el.attributes */
 const attrsOf = (el: Element): Attr[] => [...el.attributes];
+
+/** Warn about — and refuse — every core `ui:*` requirement the element does not
+ * meet: a `ui:model` on something that is not a form control, a `ui:key` /
+ * `ui:sortable` with no `ui:each`, a `ui:transition` with no `ui:fx`.
+ *
+ * Each of those attributes is read by one pass that only runs when the *partner*
+ * is present, so the pass that would have noticed is exactly the pass that never
+ * ran. Checking here, above every pass, is the only place the absence is visible.
+ *
+ * Returns the names to skip, so the caller can refuse `ui:model` rather than
+ * write `.value` onto an element that has no value to write. */
+function requirementPass(el: Element, attrs: Attr[]): Set<string> {
+  const refused = new Set<string>();
+  const host = el.tagName.toLowerCase();
+  const has = (a: string): boolean => el.hasAttribute(a);
+  for (const a of attrs) {
+    if (!REQUIREMENT_ATTRS.has(a.name)) continue;
+    for (const msg of requirementProblems(a.name, { host, has })) warn(msg);
+    // a declared value shape (ui:key) warns and falls back to its default rather
+    // than refusing — the attribute is still wanted, just not with that value
+    for (const msg of coreAttrProblems(a.name, a.value)) warn(msg);
+    if (attrRejects(a.name, { host, has })) refused.add(a.name);
+  }
+  return refused;
+}
 
 function checkVocab(attrs: Attr[]): void {
   for (const a of attrs) {
@@ -70,7 +100,17 @@ function loadRemoteTemplate(url: string, id: string): Promise<HTMLTemplateElemen
       // component files are declarative by definition — scripts are the
       // custom-element path, never the ui:use path
       doc.querySelectorAll('script').forEach(s => s.remove());
-      return doc.querySelector('template[id="' + id + '"]') as HTMLTemplateElement | null;
+      const tpl = doc.querySelector('template[id="' + id + '"]') as HTMLTemplateElement | null;
+      // The file loaded, so what failed is the `#id`, not the URL — and that
+      // failure is silent by construction: the caller's `if (tpl) instantiate(tpl)`
+      // just does nothing. Name the ids the file does have; that is the difference
+      // between a typo the author can fix and a component that renders as nothing.
+      if (!tpl) {
+        const ids = [...doc.querySelectorAll('template[id]')].map(t => '#' + t.id);
+        warn(`ui:use: no <template id="${id}"> in ${url}` +
+          (ids.length ? ` — it has ${ids.join(', ')}` : ' (the file has no <template id=…> at all)'));
+      }
+      return tpl;
     })
     .catch(e => {
       warn(`ui:use: failed to load ${key}: ${(e as Error).message}`);
@@ -119,9 +159,13 @@ function attachElement(el: Element, attrs: Attr[]): void {
   if (WIRED.has(el)) return;
   WIRED.add(el);
   try { checkVocab(attrs); } catch (e) { warnAttach('vocab', el, e); }
+  let refused = new Set<string>();
+  try { refused = requirementPass(el, attrs); } catch (e) { warnAttach('requires', el, e); }
   try { attachEnhancers(el, attrs); } catch (e) { warnAttach('enhance', el, e); }
   try { attachBinds(el, attrs); } catch (e) { warnAttach('bind', el, e); }
-  if (el.hasAttribute('ui:model')) { try { attachModel(el); } catch (e) { warnAttach('model', el, e); } }
+  // ui:model on a non-control writes `.value` onto an expando and subscribes to
+  // input/change events that element can never fire: refuse it, having said so.
+  if (el.hasAttribute('ui:model') && !refused.has('ui:model')) { try { attachModel(el); } catch (e) { warnAttach('model', el, e); } }
   if (el.hasAttribute('ui:fx')) { try { attachFx(el); } catch (e) { warnAttach('fx', el, e); } }
 }
 
@@ -154,7 +198,13 @@ export function attach(root: Element | DocumentFragment): void {
     catch (e) { warnAttach('computed', el, e); }
   }
   for (const el of els)
-    if (el.hasAttribute('ui:each')) { try { attachEach(el); } catch (e) { warnAttach('each', el, e); } }
+    if (el.hasAttribute('ui:each')) {
+      // each-templates never reach attachElement — they are pulled out of the tree
+      // and cloned per row — so their own requirements (a `ui:transition` with no
+      // `ui:fx`, say) have to be checked here or nowhere.
+      try { requirementPass(el, attrsOf(el)); } catch (e) { warnAttach('requires', el, e); }
+      try { attachEach(el); } catch (e) { warnAttach('each', el, e); }
+    }
   for (const el of els) {
     if (!el.isConnected) continue; // detached (e.g. removed each-template) — rows attach via attachSubtree
     if (el.hasAttribute('ui:each')) continue; // each-templates themselves: nothing to attach

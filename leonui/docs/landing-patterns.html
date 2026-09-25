@@ -1,0 +1,65 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Landing pages — leonui docs</title>
+<link rel="stylesheet" href="/docs/docs.css">
+</head>
+<body class="docs">
+<nav id="docs-nav"><a class="brand" href="/docs/">leonui docs</a></nav>
+<main>
+<h1>Landing pages</h1>
+<p>A marketing page is mostly <em>motion</em> and <em>layout</em> — which is exactly the half of the web the platform already does well, and the half a framework should stay out of. leonui contributes one attribute (<code>ui:reveal</code>), a handful of enhancers, and one rule about where an animation may hide things. Everything else is your CSS.</p>
+
+<p>The full page these patterns came from is <a href="/pages/landing.html">/pages/landing.html</a> — a complete, copyable landing page with a sticky header, a mobile menu, an animated hero, a logo marquee, a feature grid, a stats band, pricing, a testimonial, an FAQ and a closing form.</p>
+
+<h2>The animated hero</h2>
+<p>An entrance reveal is the most-copied pattern on the page, and it is five attributes:</p>
+
+<div data-example="/docs/examples/hero.html"></div>
+
+<p>Three props, and each one is a decision you would otherwise make in JavaScript:</p>
+<ul>
+  <li><code>trigger="load"</code> — animate immediately, rather than waiting for the element to enter the viewport. Use it for the hero, which is on screen already.</li>
+  <li><code>stagger="0..4"</code> — a delay in 80ms steps, so five parts arrive in sequence instead of in a heap. It is a custom property (<code>--ui-reveal-delay</code>) set on the element, which is why your own CSS can read the same value.</li>
+  <li><code>from="fade|up|down|left|right|zoom"</code> — the axis it travels on. Default <code>up</code>, which is the one that reads as “arriving”.</li>
+</ul>
+
+<h2>Stats that move</h2>
+<p>The number is static text; the bar carries the movement. That is deliberate, and it is the honest version of the pattern.</p>
+
+<div data-example="/docs/examples/stats.html"></div>
+
+<p>A digit-by-digit count-up needs <code>@property</code> and a CSS counter, and there is no reliable way to feature-query <code>@property</code> — so a page that does it cannot tell a browser that supports it from one that does not, and the fallback is a wrong number rather than no animation. leonui ships the version that degrades to a correct number, and the numbers stay in your markup where search engines and screen readers can see them.</p>
+
+<h3>Where an animation may hide something</h3>
+<p>This is the one rule worth memorising, because breaking it is invisible on the machine you are building on and expensive everywhere else. An animated element needs an “armed” state — the state it waits in. That state must be:</p>
+<ol>
+  <li><strong>scoped to <code>.ui-reveal-ready</code></strong>, a class only the runtime sets on <code>&lt;html&gt;</code>. A page whose bundle 404s, whose CDN is blocked, or where JavaScript is off never gets the class, so nothing is ever hidden. A landing page whose hero is invisible because a bundle failed is the worst outcome this pattern can have.</li>
+  <li><strong>inside <code>@media (prefers-reduced-motion: no-preference)</code></strong>. A reader who asked for less motion gets the page, not a fade.</li>
+  <li><strong>separated from the transition.</strong> Declare <code>transition</code> on the <em>revealed</em> state, not the armed one. A transition runs when the new computed style declares one, so declaring it on the armed state makes arming animate too — the page slides itself away on load and only then slides back.</li>
+</ol>
+<p>All three rules are visible in the stats example above. The framework's own <code>ui:reveal</code> follows them in <code>src/ui.css</code>, which is worth reading as the reference implementation.</p>
+
+<h2>Pricing with a billing toggle</h2>
+<p>One boolean signal, one checkbox, two computed prices, and no event wiring:</p>
+
+<div data-example="/docs/examples/pricing.html"></div>
+
+<p>Two things here are easy to get wrong and are called out in the example's own comments. A checkbox holds a <em>boolean</em>, so it takes <code>ui:bind-checked</code> plus a <code>toggle</code> verb — <code>ui:model</code> writes the string <code>.value</code>, which for a checkbox is always <code>"on"</code>. And <code>ui:computed</code> takes <strong>one declaration per element</strong>, unlike <code>ui:state</code> and <code>ui:bind</code> which split on <code>;</code>; a second declaration goes on its own element. <code>ui check</code> names both mistakes if you make them.</p>
+
+<h2>FAQ, and the platform's own accordion</h2>
+<div data-example="/docs/examples/faq.html"></div>
+
+<p><code>&lt;details&gt;</code> + <code>&lt;summary&gt;</code> opens with no JavaScript, is keyboard-operable for free, and its content is findable by in-page search — three things a hand-rolled accordion has to re-implement and usually does not. <code>ui:acc</code> supplies the styling and the marker rotation; it implements none of the behaviour. Reveal and <code>&lt;details&gt;</code> compose without ceremony: the reveal animates the row in once, and the row keeps its own open and close afterwards.</p>
+
+<h2>What else the page uses</h2>
+<ul>
+  <li><strong>Sticky header + mobile menu:</strong> <code>popover</code> and <code>popovertarget</code> are the platform's own, so the menu is <code>ui:popover</code> for the styling and the invoker button for the behaviour. Note the <code>scroll-margin-top</code> in the page CSS — without it every in-page anchor lands underneath the sticky header.</li>
+  <li><strong>Logo marquee:</strong> a CSS <code>@keyframes</code> on <code>transform</code> with the track's contents duplicated. It is inside a <code>prefers-reduced-motion: no-preference</code> guard, so it is simply a static row for anyone who asked for less motion.</li>
+  <li><strong>Feature grid:</strong> <code>ui:reveal</code> with <code>stagger</code> 0/1/2, repeated per row, so each row of cards cascades.</li>
+  <li><strong>Closing form:</strong> <code>ui:model</code> on the email field, and a verb list that toasts and clears the field in one go — <code>ui:fx="submit: toast 'Thanks — …' + email; set email = ''"</code>. The runtime preventDefaults <code>submit</code>, so a leonui form never navigates.</li>
+</ul>
+
+<div class="next">Next → <a href="/docs/components.html">Components</a></div>
+</main>
+<script src="/docs/docs.js"></script>
+</body></html>

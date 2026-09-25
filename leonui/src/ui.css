@@ -168,6 +168,37 @@
   .ui-state { color: var(--muted); font-size: var(--ui-text-2); padding: var(--ui-gap-4) 0; }
   .ui-state-error { color: var(--danger); }
 
+  /* ---- motion ---- */
+  /* Entrance reveal (`ui:reveal`). Two guards, and both matter:
+   *
+   *   - the hidden state is scoped to `.ui-reveal-ready` on <html>, a class only
+   *     the runtime sets. With JS off, blocked, or 404'd, nothing is ever hidden —
+   *     a hero that stays invisible because a bundle failed is the one failure an
+   *     entrance animation must not be able to cause.
+   *   - `prefers-reduced-motion: no-preference` wraps the whole block, so a reader
+   *     who asked for less motion is never hidden and never transitions. They get
+   *     the page, which is the point.
+   *
+   * `--ui-reveal-delay` is the stagger; the runtime sets it from `stagger`.
+   *
+   * The transition lives on `.ui-reveal-in`, NOT on the armed state. A transition
+   * runs when the *new* computed style declares one, so putting it on the armed
+   * rule makes arming animate too — every reveal element slides and fades OUT on
+   * load before it ever slides in. Armed is instant; only the reveal moves. */
+  @media (prefers-reduced-motion: no-preference) {
+    .ui-reveal-ready [ui\:reveal]:not(.ui-reveal-in) { opacity: 0; }
+    .ui-reveal-ready [ui\:reveal][data-reveal-from="up"]:not(.ui-reveal-in) { translate: 0 18px; }
+    .ui-reveal-ready [ui\:reveal][data-reveal-from="down"]:not(.ui-reveal-in) { translate: 0 -18px; }
+    .ui-reveal-ready [ui\:reveal][data-reveal-from="left"]:not(.ui-reveal-in) { translate: -18px 0; }
+    .ui-reveal-ready [ui\:reveal][data-reveal-from="right"]:not(.ui-reveal-in) { translate: 18px 0; }
+    .ui-reveal-ready [ui\:reveal][data-reveal-from="zoom"]:not(.ui-reveal-in) { scale: .94; }
+    .ui-reveal-ready [ui\:reveal].ui-reveal-in {
+      opacity: 1;
+      transition: opacity .5s ease-out, translate .5s ease-out, scale .5s ease-out;
+      transition-delay: var(--ui-reveal-delay, 0ms);
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; }
   }

@@ -140,6 +140,45 @@ t('reset: re-syncs text controls and keeps a checkbox value out of the model', a
   await p.close();
 });
 
+/* ================= missing fx targets ================= */
+
+t('fx targets: a selector that matches nothing is named, not silently ignored', async () => {
+  const p = await open();
+  // Three verbs could do nothing without saying so. `nav` already named a missing
+  // target; `focus` did not, and `reset` failed silently twice over — no match, or
+  // a match that is not a form, where `.reset()` is not even there to call.
+  await p.eval(`(() => {
+    window.__ui.warns.length = 0;
+    for (const [id, spec] of [
+      ['fx-focus',        "click: focus '#nope'"],
+      ['fx-reset-none',   "click: reset '#nope'"],
+      ['fx-reset-notform',"click: reset '#txt'"],
+      ['fx-nav',          "click: nav '#nope'"],
+      ['fx-ok',           "click: focus '#txt'"],
+    ]) {
+      const b = document.createElement('button');
+      b.id = id;
+      b.setAttribute('ui:fx', spec);
+      document.body.append(b);
+    }
+    return import('/dist/leonui.js').then(m => {
+      for (const id of ['fx-focus','fx-reset-none','fx-reset-notform','fx-nav','fx-ok']) m.attach(document.getElementById(id));
+    });
+  })()`);
+  for (const id of ['fx-focus', 'fx-reset-none', 'fx-reset-notform', 'fx-nav', 'fx-ok']) await click(p, '#' + id);
+
+  const warns = await p.eval<string[]>('window.__ui.warns');
+  assert.ok(warns.some(w => /ui: focus target not found: #nope/.test(w)), `focus, got: ${JSON.stringify(warns)}`);
+  assert.ok(warns.some(w => /ui: reset target not found: #nope/.test(w)), 'reset, nothing matched');
+  assert.ok(warns.some(w => /ui: reset target is not a <form>: #txt \(found <input>\)/.test(w)), 'reset, matched the wrong thing');
+  assert.ok(warns.some(w => /ui: nav target not found: #nope/.test(w)), 'nav, unchanged');
+  // a target that exists says nothing at all — the warnings are about absence, not
+  // about the verb being used
+  assert.equal(warns.filter(w => /focus target not found: #txt/.test(w)).length, 0, 'the working focus is silent');
+  assert.equal(warns.length, 4, `one warning per broken target, got: ${JSON.stringify(warns)}`);
+  await p.close();
+});
+
 /* ================= remote cell races ================= */
 
 t('remote cell: a slow first response cannot overwrite a newer one', async () => {

@@ -180,10 +180,20 @@ export function attachFx(el: Element): void {
         } else if (v.name === 'toast') toast(safeEval(v.expr!, el), false);
         else if (v.name === 'nav') doNav(v.sel!);
         else if (v.name === 'refetch') doRefetch(v.target!, el);
-        else if (v.name === 'focus') (document.querySelector(v.sel!) as HTMLElement | null)?.focus();
-        else if (v.name === 'reset') {
+        else if (v.name === 'focus') {
+          const t = document.querySelector(v.sel!) as HTMLElement | null;
+          // `nav` has always named a missing target; focus did not, so a typo'd
+          // selector looked like a control that simply refused to take focus
+          if (!t) warn('ui: focus target not found: ' + v.sel);
+          else t.focus();
+        } else if (v.name === 'reset') {
           const f = document.querySelector(v.sel!);
-          if (f && f.tagName === 'FORM') {
+          // two ways reset did nothing, both silent: the selector matched nothing,
+          // or it matched something that is not a form, so `.reset()` is not there
+          // to call. `nav`'s wording, then, for the first; a second line for the second.
+          if (!f) warn('ui: reset target not found: ' + v.sel);
+          else if (f.tagName !== 'FORM') warn(`ui: reset target is not a <form>: ${v.sel} (found <${f.tagName.toLowerCase()}>)`);
+          else {
             (f as HTMLFormElement).reset();
             for (const c of f.querySelectorAll('[ui\\:model]')) {
               const value = modelValue(c);

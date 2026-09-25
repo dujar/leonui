@@ -5,7 +5,7 @@
  * validated before they are applied, so a wrong value is a named warning and a
  * fallback to the default — never a class nothing styles. */
 import { warn } from './signals.ts';
-import { ICONS, enhancerAttrProblems, enhancerProblems, enhancerRejects, rejectedProps } from './vocab.ts';
+import { ENHANCER_SPECS, ICONS, enhancerAttrProblems, enhancerProblems, enhancerRejects, rejectedProps } from './vocab.ts';
 
 let anchorSeq = 0;
 
@@ -131,6 +131,40 @@ export const ENHANCERS: Record<string, Enhancer> = {
     if (pl) el.setAttribute('data-placement', pl);
   },
   'ui:modal': el => el.classList.add('ui-dialog'),
+  'ui:reveal': el => {
+    // Every prop was validated and a bad one already removed by attachEnhancers,
+    // so an absent attribute here IS the default — same shape as gap/align above.
+    const from = el.getAttribute('from') ?? 'up';
+    const trigger = el.getAttribute('trigger') ?? 'scroll';
+    const step = Number(el.getAttribute('stagger') ?? '0');
+    el.setAttribute('data-reveal-from', from);
+    if (step > 0) (el as HTMLElement).style.setProperty('--ui-reveal-delay', step * 80 + 'ms');
+
+    // The hidden state lives behind this class (see ui.css), so a page that never
+    // runs the runtime never hides anything. Arming is instant by construction —
+    // the transition is declared on `.ui-reveal-in`, not on the armed state — so
+    // there is nothing to commit here and no flash of a reveal animating backwards.
+    document.documentElement.classList.add('ui-reveal-ready');
+    const show = (): void => {
+      // commit the armed state for THIS element before revealing it. If both land in
+      // one style recalc the transition has no "from" to run out of and it pops
+      // instead of moving — which is invisible in a class-name test and obvious here.
+      void (el as HTMLElement).offsetHeight;
+      el.classList.add('ui-reveal-in');
+    };
+    if (trigger === 'load' || typeof IntersectionObserver === 'undefined') {
+      requestAnimationFrame(show);
+      return;
+    }
+    const io = new IntersectionObserver(entries => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        show();
+        io.unobserve(e.target); // one-shot: scrolling back up must not replay it
+      }
+    }, { rootMargin: '0px 0px -12% 0px' });
+    io.observe(el);
+  },
   'ui:tabs': el => {
     el.classList.add('ui-tabs');
     const tabs = [...el.querySelectorAll('[role="tab"]')] as HTMLElement[];
@@ -169,7 +203,15 @@ export function attachEnhancers(el: Element, attrs: Attr[] = [...el.attributes])
   for (const a of attrs) {
     // hasOwn, not `in`: plain-object lookup would treat `toString`/`constructor`
     // as enhancers and call Object.prototype members on the element
-    if (!Object.hasOwn(ENHANCERS, a.name)) continue;
+    const impl = Object.hasOwn(ENHANCERS, a.name) ? ENHANCERS[a.name] : undefined;
+    if (!impl) {
+      // A spec with no implementation is the exact silent no-op this whole table
+      // exists to prevent: `ui check` reads vocab.ts and accepts the name, the
+      // skill documents it, and the page does nothing. vocab.test.ts pins the two
+      // tables together; this is the runtime's half of that pin.
+      if (Object.hasOwn(ENHANCER_SPECS, a.name)) warn(`ui: ${a.name} is declared in the vocabulary but not implemented — no effect`);
+      continue;
+    }
     try {
       // Validate BEFORE applying, from the one table in vocab.ts. Two failure
       // modes, deliberately different (see enhancerRejects):
@@ -187,7 +229,7 @@ export function attachEnhancers(el: Element, attrs: Attr[] = [...el.attributes])
       for (const msg of enhancerAttrProblems(a.name, attrs.map(x => x.name))) warn(msg);
       if (skip) continue;
       for (const prop of rejectedProps(a.name, get)) el.removeAttribute(prop);
-      ENHANCERS[a.name]!(el);
+      impl(el);
     } catch (e) { warn((e as Error).message); }
   }
 }

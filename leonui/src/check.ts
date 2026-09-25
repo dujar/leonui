@@ -19,8 +19,8 @@ import { parse, BUILTINS } from './parser.ts';
 import { parseVerb } from './fx.ts';
 import type { Ast, Verb } from './types.ts';
 import {
-  ALL_UI_ATTRS, ASPECTS, CORE_ATTRS, ENHANCER_NAMES, ENHANCER_SPECS,
-  enhancerAttrProblems, enhancerProblems, isAttrAspect, isBindAttr, remoteDecl, suggest,
+  ALL_UI_ATTRS, ASPECTS, CORE_ATTRS, CORE_ATTRS_WITH_REQUIREMENTS, ENHANCER_NAMES, ENHANCER_SPECS,
+  coreAttrProblems, enhancerAttrProblems, enhancerProblems, isAttrAspect, isBindAttr, remoteDecl, requirementProblems, suggest,
 } from './vocab.ts';
 
 export interface Finding {
@@ -151,6 +151,11 @@ function* walkAst(a: Ast): Generator<Ast> {
 const IDENT = /^[A-Za-z_$][\w$]*$/;
 const PATH = /^[A-Za-z_$][\w$]*(?:\.[\w$]+)*$/;
 
+/** The expression with string literals blanked out, so a `;` or `:` inside a
+ * literal is never mistaken for syntax. Length is preserved, so offsets still line
+ * up if this is ever used for positioning. */
+const withoutStrings = (s: string): string => s.replace(/'[^']*'|"[^"]*"/g, m => ' '.repeat(m.length));
+
 /** Report the first problem in an expression. The runtime rejects non-builtin
  * calls only when the expression actually runs — which may be never, or only on
  * a click. Catching it here is the whole point of a static pass. */
@@ -179,6 +184,7 @@ export function checkHtml(file: string, src: string): Finding[] {
   };
 
   const KNOWN = new Set<string>([...CORE_ATTRS, ...ENHANCER_NAMES]);
+  const REQUIREMENT_ATTRS = new Set<string>(CORE_ATTRS_WITH_REQUIREMENTS);
   const checkExpr = (expr: string, offset: number, where: string): void => {
     const p = expressionProblem(expr);
     if (p) at(offset, 'error', `${where}: ${p}`);
@@ -208,6 +214,16 @@ export function checkHtml(file: string, src: string): Finding[] {
       if (!Object.hasOwn(ENHANCER_SPECS, a.name)) continue;
       for (const msg of enhancerProblems(a.name, get, { host, has })) at(a.offset, 'error', msg);
       for (const msg of enhancerAttrProblems(a.name, tag.attrs.map(x => x.name))) at(a.offset, 'error', msg);
+    }
+
+    /* 2b. core requirements: a host contract (`ui:model` on a form control) or a
+     * partner attribute on the same element (`ui:sortable` needs `ui:each`).
+     * Enhancers' own hosts/requiresAttr are covered above; this is the other half
+     * of the same table, and it is the half whose failure is invisible at runtime:
+     * the pass that would notice only runs when the partner is already there. */
+    for (const a of tag.attrs) {
+      if (!REQUIREMENT_ATTRS.has(a.name)) continue;
+      for (const msg of requirementProblems(a.name, { host, has })) at(a.offset, 'error', msg);
     }
 
     /* 3. binds */
@@ -242,12 +258,22 @@ export function checkHtml(file: string, src: string): Finding[] {
     /* 4. ui:computed */
     const computed = get('ui:computed');
     if (computed != null) {
+      const off = seen.get('ui:computed')!.offset;
       const ci = computed.indexOf(':');
-      if (ci < 0) at(seen.get('ui:computed')!.offset, 'error', `ui: bad computed "${computed}" — expected "name: expression"`);
+      if (ci < 0) at(off, 'error', `ui: bad computed "${computed}" — expected "name: expression"`);
       else {
         const name = computed.slice(0, ci).trim();
-        if (!IDENT.test(name)) at(seen.get('ui:computed')!.offset, 'error', `ui: bad signal name "${name}"`);
-        checkExpr(computed.slice(ci + 1).trim(), seen.get('ui:computed')!.offset, 'ui:computed');
+        if (!IDENT.test(name)) at(off, 'error', `ui: bad signal name "${name}"`);
+        const expr = computed.slice(ci + 1).trim();
+        // `ui:computed` takes ONE declaration, unlike `ui:state`/`ui:bind` which
+        // split on `;`. A second declaration is not a syntax error the parser can
+        // explain: it reads the `;` as part of the expression and reports "trailing
+        // input", which names the symptom and leaves the cause to be guessed.
+        const semi = withoutStrings(expr).indexOf(';');
+        if (semi >= 0) {
+          const rest = expr.slice(semi + 1).trim();
+          at(off, 'error', `ui:computed takes one declaration per element — move "${rest}" onto its own element with ui:computed`);
+        } else checkExpr(expr, off, 'ui:computed');
       }
     }
 
@@ -290,9 +316,26 @@ export function checkHtml(file: string, src: string): Finding[] {
         if (!PATH.test(parts[2]!)) at(off, 'error', `ui: bad each list path "${parts[2]}"`);
       }
     }
+    // ui:key is a property NAME on the item — `each.ts` does `item[keyAttr]`. It
+    // used to be validated as a signal path, which is precisely how `ui:key="row.id"`
+    // passed this check and then keyed every row by its index, silently.
     const key = get('ui:key');
-    if (key != null && !PATH.test(key.trim())) {
-      at(seen.get('ui:key')!.offset, 'error', `ui: bad key path "${key}"`);
+    if (key != null) {
+      const off = seen.get('ui:key')!.offset;
+      for (const msg of coreAttrProblems('ui:key', key.trim())) at(off, 'error', msg);
+    }
+
+    /* 6b. ui:use — both forms need a "#template-id". Without one the local form
+     * hands a CSS selector to querySelector and throws a SyntaxError, and the
+     * remote form is not even recognised as remote, so "card.html" is looked up
+     * as if it were an element. Either way the message is about CSS, not about
+     * the missing id, which is what actually went wrong. */
+    const use = get('ui:use');
+    if (use != null) {
+      const off = seen.get('ui:use')!.offset;
+      const hash = use.indexOf('#');
+      if (hash < 0) at(off, 'error', `ui: bad use "${use}" — expected "#template-id" or "path.html#template-id"`);
+      else if (!use.slice(hash + 1).trim()) at(off, 'error', `ui: bad use "${use}" — the "#" needs a template id after it`);
     }
 
     /* 7. ui:fx — events → the closed verb catalog */

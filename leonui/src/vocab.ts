@@ -88,42 +88,102 @@ export interface EnhancerSpec {
   hosts?: readonly string[];
   /** native attribute the enhancer needs to be present to do anything */
   requiresAttr?: string;
+  /** prose for the vocabulary table's notes column. It lives HERE, next to the
+   * spec, because the skill's table is generated from this table — prose kept
+   * anywhere else would be the one part of the vocabulary free to drift. */
+  note?: string;
 }
 
 const GAP = { range: [1, 8] as const };
 const ALIGN = { values: ['start', 'center', 'end', 'between'] as const };
 
+/** Every enhancer, its props, and the prose the skill's table shows for it.
+ * The `note` strings are rendered into `skill/SKILL.md` by `scripts/grammar.ts`,
+ * so this file is the only place a value vocabulary or a host contract lives. */
 export const ENHANCER_SPECS: Record<string, EnhancerSpec> = {
-  'ui:stack': { props: { gap: GAP, align: ALIGN }, flags: ['center'] },
-  'ui:row': { props: { gap: GAP, align: ALIGN }, flags: ['center', 'wrap'] },
+  'ui:stack': { props: { gap: GAP, align: ALIGN }, flags: ['center'], note: '`align` moves the **cross** axis, `center` does both' },
+  'ui:row': { props: { gap: GAP, align: ALIGN }, flags: ['center', 'wrap'], note: '`align` moves the **cross** axis, `wrap` the main axis' },
   'ui:card': { props: { variant: { values: ['inset', 'outline'] } } },
   'ui:divider': {},
   'ui:spacer': { props: { size: GAP } },
   'ui:text': { props: { variant: { values: ['title', 'subtitle', 'muted', 'strong', 'code'] } } },
   'ui:badge': { props: { variant: { values: ['brand', 'danger', 'warn', 'success'] } } },
-  'ui:button': { props: { variant: { values: ['primary', 'ghost', 'danger', 'icon'] } }, flags: ['block'] },
-  'ui:icon': { props: { name: { values: ICON_NAMES } }, hosts: ['svg'] },
+  'ui:button': { props: { variant: { values: ['primary', 'ghost', 'danger', 'icon'] } }, flags: ['block'], note: 'including `<a>`' },
+  'ui:icon': { props: { name: { values: ICON_NAMES } }, hosts: ['svg'], note: 'writes the sprite `<use>`' },
   'ui:image': {
     props: { ratio: { pattern: /^\s*\d+(?:\.\d+)?(?:\s*\/\s*\d+(?:\.\d+)?)?\s*$/, hint: 'a CSS aspect-ratio, e.g. "3/2" or "1.5"' } },
     hosts: ['img'],
+    note: 'error fallback class',
   },
   'ui:field': {},
-  'ui:input': { hosts: ['input'] },
-  'ui:textarea': { hosts: ['textarea'] },
-  'ui:select': { hosts: ['select'] },
-  'ui:checkbox': { hosts: ['input'] },
+  'ui:input': { hosts: ['input'], note: 'control class' },
+  'ui:textarea': { hosts: ['textarea'], note: 'control class' },
+  'ui:select': { hosts: ['select'], note: 'control class' },
+  'ui:checkbox': { hosts: ['input'], note: 'checkable control' },
   'ui:popover': {
     props: {
       anchor: { hint: 'a CSS selector, e.g. "#btn"' },
       placement: { values: ['bottom-start', 'bottom-end', 'top-start', 'top-end'] },
     },
     requiresAttr: 'popover',
+    note: 'opened by a `popovertarget` invoker button',
   },
-  'ui:modal': { hosts: ['dialog'] },
-  'ui:tabs': {},
+  'ui:modal': { hosts: ['dialog'], note: 'open with `command="show-modal" commandfor="id"` buttons — zero JS' },
+  'ui:tabs': { note: 'needs `role=tab/tablist/tabpanel` markup — arrow keys + Home/End included' },
+  'ui:reveal': {
+    props: {
+      from: { values: ['fade', 'up', 'down', 'left', 'right', 'zoom'] },
+      trigger: { values: ['scroll', 'load'] },
+      stagger: { range: [0, 8], hint: 'an integer 0..8 (each step is 80ms)' },
+    },
+    note: 'scroll-driven entrance animation; `trigger="load"` animates on load instead',
+  },
 };
 
 export const ENHANCER_NAMES: readonly string[] = Object.keys(ENHANCER_SPECS);
+
+/* ---------- requirements that are not about props ---------- */
+/** `ui:*` attributes that only mean something alongside another attribute on the
+ * **same element**. Without the partner they are inert, which used to be silent:
+ * `ui:sortable` on a non-`ui:each` element looked like a working sortable list. */
+export const COMPANIONS: Record<string, string> = {
+  'ui:key': 'ui:each',
+  'ui:sortable': 'ui:each',
+  'ui:transition': 'ui:fx',
+};
+
+/** Core (non-enhancer) `ui:*` attributes with a host contract of their own.
+ * Enhancer hosts live in their spec above; these are the family heads and
+ * satellites that only work on a particular kind of element. */
+export const CORE_HOSTS: Record<string, readonly string[]> = {
+  // ui:model writes `.value` and listens for input/change — on anything else both
+  // are inert, so it looked like a two-way bind that simply never fired
+  'ui:model': ['input', 'textarea', 'select'],
+};
+
+/** Core `ui:*` attributes whose **value** has a shape the runtime depends on, the
+ * way an enhancer prop does.
+ *
+ * `ui:key` is the one today. `each.ts` does `item[keyAttr]`, so the value is a
+ * property NAME on the item, not a path — and `ui:key="row.id"` is the mistake
+ * that shape invites: it parses, it validates as a path, it renders, and every
+ * row silently falls back to its index, which is exactly the keyed-list guarantee
+ * the attribute exists to provide. */
+export const CORE_PROPS: Record<string, PropSpec> = {
+  'ui:key': {
+    pattern: /^[^\s.]+$/,
+    hint: 'a property name on the item, e.g. "id" — the runtime reads item[key], so a dotted path resolves to nothing and every row falls back to its index',
+  },
+};
+
+/** every **core** `ui:*` attribute that carries a requirement or a value contract.
+ * Enhancers carry theirs inside their own spec above; this is the set the
+ * runtime's requirement pass and `ui check` iterate. */
+export const CORE_ATTRS_WITH_REQUIREMENTS: readonly string[] = [
+  ...Object.keys(CORE_HOSTS),
+  ...Object.keys(CORE_PROPS),
+  ...Object.keys(COMPANIONS),
+];
 
 /** every legal `ui:*` attribute name — the typo check and its suggestions read this */
 export const ALL_UI_ATTRS: readonly string[] = [...CORE_ATTRS, 'ui:bind', ...ENHANCER_NAMES];
@@ -156,6 +216,69 @@ export function enhancerRejects(
     return `ui: ${enhancer} needs the native "${spec.requiresAttr}" attribute — not applied`;
   }
   return null;
+}
+
+/** Requirements carried by a **core** `ui:*` attribute that are not about props:
+ * the kind of element it must sit on, and the partner attribute it must share
+ * that element with.
+ *
+ * The gap this closes: `ui:key`, `ui:sortable`, `ui:transition` and `ui:model` are
+ * each read in exactly one place — `each.ts`, `fx.ts`, `binds.ts` — and each of
+ * those reads the attribute *itself*. Nothing there can tell that the thing it
+ * depends on is absent, because absence is precisely why the code did not run:
+ * `ui:sortable` on a non-`ui:each` element looked like a working sortable list,
+ * and `ui:model` on a `<div>` was a two-way bind that could never fire. So the
+ * check has to live here, above both consumers.
+ *
+ * Returns one `ui: `-prefixed message per unmet requirement, so the runtime's
+ * warning and the checker's finding are the same string by construction. */
+export function requirementProblems(
+  attr: string,
+  opts: { host?: string; has?: (attr: string) => boolean } = {},
+): string[] {
+  const out: string[] = [];
+  const hosts = CORE_HOSTS[attr];
+  // A hyphenated tag is a custom element by specification, and the runtime has no
+  // business declaring what its `.value` means — so `<my-slider ui:model="x">` is
+  // left alone. Everything else must match: there is no way to make a form control
+  // out of a `<div>`, and a two-way bind that can never fire is worse than a
+  // refused one.
+  if (hosts && opts.host && !hosts.includes(opts.host) && !opts.host.includes('-')) {
+    out.push(`ui: ${attr} requires <${hosts.join('> or <')}>, found <${opts.host}> — not applied`);
+  }
+  const companion = COMPANIONS[attr];
+  if (companion && opts.has && !opts.has(companion)) {
+    out.push(`ui: ${attr} needs "${companion}" on the same element (no effect)`);
+  }
+  return out;
+}
+
+/** Validate the values of core `ui:*` attributes that declare a shape.
+ *
+ * Warnings only, and the attribute falls back to its default — the same failure
+ * mode as a rejected enhancer prop, and deliberately *not* the "skip outright"
+ * one: a `ui:key` with a bad value still wants a keyed list, just the default key. */
+export function coreAttrProblems(attr: string, value: string | null): string[] {
+  const ps = CORE_PROPS[attr];
+  if (!ps || value == null || value === '') return [];
+  if (ps.pattern && !ps.pattern.test(value)) {
+    return [`ui: ${attr}="${value}" — expected ${ps.hint ?? 'a different format'} (using the default)`];
+  }
+  return [];
+}
+
+/** The general form of `enhancerRejects`: one reason a `ui:*` attribute must be
+ * **skipped outright**, whichever table owns the requirement — an enhancer spec's
+ * `hosts`/`requiresAttr`, or `CORE_HOSTS`/`COMPANIONS`. `null` when it may run.
+ *
+ * Split from `requirementProblems` so a caller that only needs the yes/no decision
+ * (the runtime's attach loop, which has already emitted the messages) does not
+ * build the strings twice. */
+export function attrRejects(
+  attr: string,
+  opts: { host?: string; has?: (attr: string) => boolean } = {},
+): string | null {
+  return enhancerRejects(attr, opts) ?? requirementProblems(attr, opts)[0] ?? null;
 }
 
 /** Validate one enhancer's declared props.

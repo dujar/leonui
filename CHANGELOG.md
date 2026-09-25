@@ -3,6 +3,102 @@
 All notable changes to leonui are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/); versioning follows semver.
 
+## [Unreleased]
+
+A third pass closes the two remaining gaps in the same contract — the vocabulary was
+enforced everywhere except where an attribute only means something next to another one,
+and the authoring agent's copy of the table was the last hand-maintained one — and makes
+animation a first-class, verifiable part of the grammar.
+
+### Added
+
+- **The companion-attribute contract.** `ui:key`/`ui:sortable` without `ui:each`,
+  `ui:transition` without `ui:fx`, and `ui:model` on anything that is not
+  `input`/`textarea`/`select` were all silent. `src/vocab.ts` now states them in three named
+  maps — `COMPANIONS`, `CORE_HOSTS`, `CORE_PROPS` — and a new `requirementPass` runs **above
+  every other attach pass**, which is where it has to run: each of those attributes is read
+  in exactly one place, and that place only runs once the partner is already present, so the
+  pass that would have noticed is the pass that never ran. A missing companion or a wrong
+  host warns and **skips**; a bad core value warns and falls back to the default. `ui check`
+  reports all of it before render. A tag containing `-` is a custom element by
+  specification, so `CORE_HOSTS` never second-guesses one — the runtime refuses only what it
+  can be certain about.
+- **`ui:key`'s value is a property name, not a path.** `ui:key="row.id"` keys every row by
+  index, silently. It is now validated by pattern (`CORE_PROPS`) and named by both halves.
+- **`ui:reveal` — entrance animation, one attribute.** `from=fade|up|down|left|right|zoom`
+  (default `up`), `trigger=scroll|load`, `stagger=0..8` (80 ms steps, via
+  `--ui-reveal-delay`). Two guarantees are the point, and both are tested: the armed state
+  is scoped to `.ui-reveal-ready` on `<html>` — a class only the runtime sets — so a page
+  whose bundle 404s, whose CDN is blocked, or where JS is off renders **fully visible**; and
+  the whole motion block sits inside `@media (prefers-reduced-motion: no-preference)`.
+- **The skill's grammar table is generated, not hand-written.** `scripts/grammar.ts` renders
+  it from `src/vocab.ts` between `BEGIN/END GENERATED` markers in `skill/SKILL.md` and its
+  repo-root twin, and dumps `grammar.json` for each. `bun run grammar` writes;
+  `bun run grammar:check` exits 1 if any of the four is stale. The table was the third
+  consumer of the vocabulary and the only hand-maintained one, so it was free to drift — and
+  did (a missing *name*; a missing *value* or a wrong *host* would have been silent). Proved
+  load-bearing by mutation: adding a bogus badge variant makes `grammar:check` list all four
+  files and the skill test fail.
+- **A vocabulary entry with no implementation is now named** —
+  `ui: <attr> is declared in the vocabulary but not implemented — no effect` — with a test
+  that pins both directions (`vocab: every declared enhancer is implemented, and every
+  implementation declared`). `ui:use` without a `#id` is a named checker finding too, and
+  `focus`/`reset` now name a missing target (`ui: focus target not found: …`,
+  `ui: reset target is not a <form>: #txt (found <input>)`) instead of doing nothing,
+  matching `nav`'s existing wording.
+- **`ui:computed` takes one declaration per element** (unlike `ui:state`/`ui:bind`, which
+  split on `;`). The checker's honest answer used to be `trailing input "; bizPrice: …"`;
+  it now names the cause.
+- **`pages/landing.html`** — a whole startup landing page written in the grammar: sticky
+  header with a native popover mobile menu, radial-gradient hero, token-built "screenshot"
+  with animated bars, a CSS marquee logo band, a six-card feature grid, four stats that
+  animate on scroll, a billing toggle driving three pricing tiers, a testimonial, a
+  `<details>` FAQ and a closing form that toasts then clears. Plus four focused examples
+  (`docs/examples/{hero,pricing,stats,faq}.html`), each embedded and running in the new
+  `docs/landing-patterns.html`.
+- **Tests**: `tests/motion.test.ts` (6) and `tests/landing.test.ts` (8). `tests/docs.test.ts`
+  now scrapes `data-example=` from the docs pages and **boots every embedded example,
+  asserting zero runtime warnings**, so the docs cannot silently acquire a broken example.
+  `tests/vocab.test.ts`, `tests/check.test.ts`, `tests/skill.test.ts`, `tests/accuracy.test.ts`
+  and `tests/remotecomponents.test.ts` gained the new-guard cases. Suite: 105 → 135 tests
+  across 15 files.
+
+### Fixed
+
+- **The reveal animated backwards on load.** A transition runs when the *new* computed style
+  declares one, so declaring it on the armed state made arming animate too: every reveal
+  element slid and faded *out* before sliding in. Caught by sampling the computed
+  `translate` — it was mid-flight at `0px 0.99px`, the opposite direction from expected —
+  not by a class-name assertion, which would have passed with nothing moving. The transition
+  now lives on `[ui\:reveal].ui-reveal-in` and arming is instant, pinned by
+  `assert.equal(transitionDuration, '0s', 'nothing transitions while arming')`.
+- **The stat bars were armed unconditionally** (`transform: scaleX(0)` outside any guard),
+  so a reduced-motion reader — and a reader whose bundle 404'd — was left with no bars at
+  all. Both animated-bar rules are now wrapped in `.ui-reveal-ready` +
+  `prefers-reduced-motion: no-preference`.
+- **`discoverChrome()` did not know the macOS Playwright layout**, so the suite failed with
+  `no chromium binary found` on macOS. It now checks `chrome-mac`/`chrome-mac-arm64` and
+  `chrome-headless-shell-mac-*`, and falls back to `/Applications/Google Chrome.app/…` and
+  the Linux paths; `launch()` passes `--headless=new` for a full Chrome but not for a
+  headless shell. `Page.reducedMotion()`/`colorScheme()` used to replace the whole emulated
+  media-features array, so setting one silently cleared the other — the harness now
+  accumulates them through one private `emulate()`.
+- **Landing-page layout**: anchors landed under the sticky header (fixed with
+  `scroll-margin-top: 4.75rem` on `[id]`), and tier CTAs did not line up across unequal copy
+  lengths (fixed with a column-flex tier and `margin-top: auto` on the CTA).
+
+### Changed
+
+- Runtime 27.8 → **31.0 KB minified / 10.4 → 11.6 KB gzipped**; the stylesheet 9.9 →
+  **11.7 KB / 2.7 → 3.3 KB**. `benchmark.md` regenerated, and its honest-reading section now
+  attributes the bytes to the two passes separately — the vocabulary pass ~4.6 KB, this
+  contract-and-motion pass a further ~3.2 KB — instead of pinning the whole delta on the
+  first one, which had made the sentence contradict its own computed parenthetical.
+- Documentation: `README.md` and `AGENTS.md` document the companion contract, the motion
+  guarantees and the generated table; `naming.md` rule 4 gains the requirement maps, the
+  custom-element carve-out and the motion obligation, and rule 7 now says an addition means
+  editing `src/vocab.ts` and running `bun run grammar`.
+
 ## [0.3.0] — 2026-09-26
 
 An accuracy-and-performance review pass over the runtime, its tests, and its

@@ -98,11 +98,39 @@ test('check: declarations', () => {
   assert.deepEqual(checkHtml('t.html', `<div ui:state="rows: GET /api/rows"></div>`), []);
 });
 
+test('check: a second ui:computed declaration is named as the cause, not the symptom', () => {
+  // `ui:state` and `ui:bind` split on `;`; `ui:computed` does not. A second
+  // declaration reads as part of the expression, and the parser's honest answer —
+  // "trailing input" — leaves the author to work out what the trailing input is.
+  const fs = checkHtml('t.html', `<div ui:computed="a: n * 2; b: n + 1"></div>`);
+  assert.equal(fs.length, 1);
+  assert.match(fs[0]!.message, /ui:computed takes one declaration per element/);
+  assert.match(fs[0]!.message, /move "b: n \+ 1" onto its own element/);
+  // a `;` inside a string literal is just a character
+  assert.deepEqual(checkHtml('t.html', `<div ui:computed="label: 'a; b'"></div>`), []);
+  // and the ordinary single declaration is untouched
+  assert.deepEqual(checkHtml('t.html', `<div ui:computed="d: n * 2"></div>`), []);
+});
+
 test('check: repeat, model and key paths', () => {
   assert.match(one(checkHtml('t.html', `<ul ui:each="row inn rows"></ul>`), /bad each/)!.message, /expected "item in listPath"/);
-  assert.match(one(checkHtml('t.html', `<ul ui:each="row in rows"><li ui:key="row."></li></ul>`), /bad key path "row\."/)!.message, /bad key path/);
   assert.match(one(checkHtml('t.html', `<input ui:model="row .">`), /bad model path/)!.message, /bad model path/);
-  assert.deepEqual(checkHtml('t.html', `<ul ui:each="row in rows"><li ui:key="row.id"></li></ul>`), []);
+  // `ui:key` belongs on the SAME element as `ui:each` — that is the only place
+  // each.ts reads it, so on a child it was inert. This fixture used to assert the
+  // child form was clean, which is exactly the silent no-op being fixed here.
+  assert.match(
+    one(checkHtml('t.html', `<ul ui:each="row in rows"><li ui:key="row.id"></li></ul>`), /needs "ui:each"/)!.message,
+    /ui:key needs "ui:each" on the same element/,
+  );
+  // and its value is a property NAME on the item, not a path: item["row.id"] is
+  // undefined, so every row quietly keyed by index — the guarantee, silently gone
+  assert.match(
+    one(checkHtml('t.html', `<ul ui:each="row in rows" ui:key="row.id"></ul>`), /expected a property name/)!.message,
+    /item\[key\], so a dotted path resolves to nothing/,
+  );
+  // the correct form is quiet, and omitting the key is legal (it defaults to "id")
+  assert.deepEqual(checkHtml('t.html', `<ul ui:each="row in rows" ui:key="id"></ul>`), []);
+  assert.deepEqual(checkHtml('t.html', `<ul ui:each="row in rows"></ul>`), []);
 });
 
 test('check: verbs are validated against the closed catalog', () => {
@@ -141,6 +169,38 @@ test('check: a misspelled prop name is caught, a foreign attribute is not', () =
   assert.deepEqual(checkHtml('t.html', `<div ui:badge tracking-id="7"></div>`), []);
   // an enhancer with no props to misspell
   assert.deepEqual(checkHtml('t.html', `<div ui:divider whatever="1"></div>`), []);
+});
+
+test('check: requirements that are not about props are reported too', () => {
+  // A partner attribute on the same element. These were invisible to every pass
+  // that could have noticed: the pass that reads `ui:sortable` only runs when
+  // `ui:each` is present, which is exactly the case where it is not wrong.
+  assert.match(one(checkHtml('t.html', `<ul ui:sortable><li>x</li></ul>`), /needs "ui:each"/)!.message, /ui:sortable needs "ui:each" on the same element/);
+  assert.match(one(checkHtml('t.html', `<li ui:key="id"></li>`), /needs "ui:each"/)!.message, /ui:key needs "ui:each"/);
+  assert.match(one(checkHtml('t.html', `<div ui:transition></div>`), /needs "ui:fx"/)!.message, /ui:transition needs "ui:fx"/);
+  // and a host contract, from the same table
+  assert.match(one(checkHtml('t.html', `<div ui:model="q"></div>`), /ui:model requires/)!.message, /requires <input> or <textarea> or <select>, found <div>/);
+  // satisfied is silent, and so is a host the runtime declines to judge
+  assert.deepEqual(checkHtml('t.html', `<ul ui:each="r in rows" ui:sortable ui:key="id"></ul>`), []);
+  assert.deepEqual(checkHtml('t.html', `<input ui:model="q">`), []);
+  assert.deepEqual(checkHtml('t.html', `<my-slider ui:model="q"></my-slider>`), [], 'a custom element is its own business');
+});
+
+test('check: ui:use needs a template id', () => {
+  // without one the local form hands a CSS selector to querySelector (SyntaxError)
+  // and the remote form is not recognised as remote at all — either way the runtime
+  // message is about CSS, never about the id that is actually missing
+  assert.match(one(checkHtml('t.html', `<div ui:use="card.html"></div>`), /bad use/)!.message, /expected "#template-id"/);
+  assert.match(one(checkHtml('t.html', `<div ui:use="#"></div>`), /bad use/)!.message, /needs a template id after it/);
+  assert.deepEqual(checkHtml('t.html', `<div ui:use="#card"></div>`), []);
+  assert.deepEqual(checkHtml('t.html', `<div ui:use="/components/card.html#card"></div>`), []);
+});
+
+test('check: ui:reveal validates its props like any other enhancer', () => {
+  assert.match(one(checkHtml('t.html', `<section ui:reveal from="sideways"></section>`), /ui:reveal from/)!.message, /allowed: fade\|up\|down\|left\|right\|zoom/);
+  assert.match(one(checkHtml('t.html', `<section ui:reveal stagger="99"></section>`), /ui:reveal stagger/)!.message, /integer 0\.\.8/);
+  assert.match(one(checkHtml('t.html', `<section ui:reveal trigger="hover"></section>`), /ui:reveal trigger/)!.message, /allowed: scroll\|load/);
+  assert.deepEqual(checkHtml('t.html', `<section ui:reveal from="up" trigger="scroll" stagger="3"></section>`), []);
 });
 
 /* ================= positions ================= */

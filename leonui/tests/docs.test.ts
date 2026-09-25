@@ -2,6 +2,7 @@
  * hello-world example really runs (the docs promise live examples — keep it true). */
 import { test, beforeAll, afterAll } from 'bun:test';
 import assert from 'node:assert/strict';
+import { readFileSync, readdirSync } from 'node:fs';
 import { app } from '../serve/app.ts';
 import { Browser } from './harness.ts';
 
@@ -12,7 +13,7 @@ let browser: Browser;
 const PAGES = [
   '/docs/', '/docs/hello-world.html', '/docs/state-and-binds.html', '/docs/lists.html',
   '/docs/forms.html', '/docs/server-data.html', '/docs/overlays.html', '/docs/theming.html',
-  '/docs/components.html', '/docs/verbs-reference.html',
+  '/docs/landing-patterns.html', '/docs/components.html', '/docs/verbs-reference.html',
 ];
 
 beforeAll(async () => {
@@ -44,11 +45,37 @@ test('docs: hello-world example actually runs', async () => {
   await p.close();
 });
 
-test('docs: every embedded example source is fetchable and boots the runtime', async () => {
-  const examples = ['hello.html', 'counter.html', 'two-way.html', 'list.html', 'server-data.html', 'overlays.html', 'theming.html'];
-  for (const e of examples) {
-    const res = await fetch(`${base}/docs/examples/${e}`);
-    assert.equal(res.status, 200, `${e} must be 200`);
-    assert.ok((await res.text()).includes('/dist/leonui.js'), `${e} loads the runtime`);
+/** Every example the docs pages actually embed, read out of the pages themselves.
+ * A hand-written list is a list that stops covering the example somebody added
+ * last week — which is how a docs site quietly acquires broken examples. */
+function embeddedExamples(): string[] {
+  const dir = new URL('../docs/', import.meta.url);
+  const out = new Set<string>();
+  for (const f of readdirSync(dir).filter(f => f.endsWith('.html'))) {
+    const html = readFileSync(new URL(f, dir), 'utf8');
+    for (const m of html.matchAll(/data-example="([^"]+)"/g)) out.add(m[1]!);
+  }
+  return [...out].sort();
+}
+
+test('docs: every embedded example source is fetchable and loads the runtime', async () => {
+  const examples = embeddedExamples();
+  assert.ok(examples.length >= 10, `expected the docs to embed a real set of examples, found ${examples.length}`);
+  for (const src of examples) {
+    const res = await fetch(base + src);
+    assert.equal(res.status, 200, `${src} must be 200`);
+    assert.ok((await res.text()).includes('/dist/leonui.js'), `${src} loads the runtime`);
   }
 });
+
+test('docs: every embedded example boots with no runtime warnings', async () => {
+  // The docs promise live examples. "It renders" is not the promise — "it renders
+  // the way the prose says it does" is, and a page that boots with warnings is a
+  // page whose prose and whose behaviour have parted company.
+  for (const src of embeddedExamples()) {
+    const p = await browser.newPage(base).then(x => x.goto(src));
+    const warns = await p.eval<string[]>('window.__ui.warns');
+    assert.deepEqual(warns, [], `${src} booted with warnings`);
+    await p.close();
+  }
+}, 40000);

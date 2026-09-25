@@ -1,0 +1,58 @@
+<!doctype html><html lang="en"><head><title>animated stats</title><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/src/ui.css"><style>
+  body { padding: 2rem 1.25rem; font-size: 15px; }
+  .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem 1rem; }
+  @media (min-width: 34rem) { .stats { grid-template-columns: repeat(4, 1fr); } }
+  .stat b { display: block; font-size: clamp(1.5rem, 5vw, 2rem); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .stat span { color: var(--muted); font-size: .8rem; }
+  .stat-bar { height: 3px; margin-top: .6rem; border-radius: 999px; background: var(--line); overflow: hidden; }
+  .stat-bar i { display: block; height: 100%; width: var(--w, 60%); background: var(--brand); border-radius: 999px; transform-origin: left; }
+
+  /* Animated bar, and the three rules that make it safe:
+   *
+   *   1. the resting state is the FINAL state — full width, no transform. So the
+   *      bar is correct with no JavaScript and with no CSS animation at all.
+   *   2. the ARMED state (`scaleX(0)`) is scoped to `.ui-reveal-ready`, a class
+   *      only the runtime sets, AND to `prefers-reduced-motion: no-preference`.
+   *      An unconditional `scaleX(0)` would leave a reduced-motion reader with no
+   *      bar, and a reader whose bundle 404'd with no bar either.
+   *   3. the TRANSITION is declared on the revealed state, not the armed one, so
+   *      arming is instant. Declared on the armed state, the bar would animate
+   *      *out* on load before it ever animated in.
+   *
+   * `--ui-reveal-delay` is the same custom property `stagger` sets, so the bar
+   * inherits the card's stagger with nothing wired up. */
+  @media (prefers-reduced-motion: no-preference) {
+    .ui-reveal-ready [ui\:reveal]:not(.ui-reveal-in) .stat-bar i { transform: scaleX(0); }
+    .ui-reveal-ready [ui\:reveal].ui-reveal-in .stat-bar i {
+      transform: scaleX(1);
+      transition: transform .9s cubic-bezier(.2, .8, .2, 1);
+      transition-delay: var(--ui-reveal-delay, 0ms);
+    }
+  }
+</style></head>
+<body>
+  <!-- The number is static text in the markup, and the bar carries the movement.
+       A digit-by-digit count-up needs `@property` and a CSS counter, which has no
+       reliable feature query — so this is what the framework ships instead, and
+       it degrades to a plain, correct number. -->
+  <div class="stats">
+    <div class="stat" ui:reveal stagger="0">
+      <b>42,000</b><span>invoices sent</span>
+      <div class="stat-bar"><i style="--w: 84%"></i></div>
+    </div>
+    <div class="stat" ui:reveal stagger="1">
+      <b>11 days</b><span>average time to payment</span>
+      <div class="stat-bar"><i style="--w: 62%"></i></div>
+    </div>
+    <div class="stat" ui:reveal stagger="2">
+      <b>£38m</b><span>collected last year</span>
+      <div class="stat-bar"><i style="--w: 71%"></i></div>
+    </div>
+    <div class="stat" ui:reveal stagger="3">
+      <b>96%</b><span>paid without a phone call</span>
+      <div class="stat-bar"><i style="--w: 96%"></i></div>
+    </div>
+  </div>
+  <p class="ui-t-muted" style="margin-top:1.5rem">Scroll this frame to watch the bars fill, in sequence.</p>
+<script type="module" src="/dist/leonui.js"></script>
+</body></html>

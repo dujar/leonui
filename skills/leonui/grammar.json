@@ -1,0 +1,288 @@
+{
+  "$comment": "GENERATED from src/vocab.ts by scripts/grammar.ts — do not edit by hand. It is the same table the runtime validates against and `ui check` reports from.",
+  "coreAttrs": [
+    "ui:state",
+    "ui:computed",
+    "ui:model",
+    "ui:each",
+    "ui:key",
+    "ui:sortable",
+    "ui:use",
+    "ui:fx",
+    "ui:transition"
+  ],
+  "coreHosts": {
+    "ui:model": [
+      "input",
+      "textarea",
+      "select"
+    ]
+  },
+  "coreProps": {
+    "ui:key": {
+      "pattern": "^[^\\s.]+$",
+      "hint": "a property name on the item, e.g. \"id\" — the runtime reads item[key], so a dotted path resolves to nothing and every row falls back to its index"
+    }
+  },
+  "companions": {
+    "ui:key": "ui:each",
+    "ui:sortable": "ui:each",
+    "ui:transition": "ui:fx"
+  },
+  "bindAspects": [
+    "text",
+    "class",
+    "hidden",
+    "disabled",
+    "checked",
+    "open"
+  ],
+  "verbs": [
+    "set",
+    "toggle",
+    "call",
+    "toast",
+    "nav",
+    "refetch",
+    "prompt",
+    "confirm",
+    "focus",
+    "reset",
+    "delay"
+  ],
+  "gates": [
+    "onfail",
+    "onsuccess"
+  ],
+  "sentinels": [
+    "GET"
+  ],
+  "icons": [
+    "check",
+    "x",
+    "chevron-down",
+    "search",
+    "plus",
+    "dot",
+    "menu"
+  ],
+  "enhancers": {
+    "ui:stack": {
+      "props": {
+        "gap": {
+          "range": [
+            1,
+            8
+          ]
+        },
+        "align": {
+          "values": [
+            "start",
+            "center",
+            "end",
+            "between"
+          ]
+        }
+      },
+      "flags": [
+        "center"
+      ],
+      "note": "`align` moves the **cross** axis, `center` does both"
+    },
+    "ui:row": {
+      "props": {
+        "gap": {
+          "range": [
+            1,
+            8
+          ]
+        },
+        "align": {
+          "values": [
+            "start",
+            "center",
+            "end",
+            "between"
+          ]
+        }
+      },
+      "flags": [
+        "center",
+        "wrap"
+      ],
+      "note": "`align` moves the **cross** axis, `wrap` the main axis"
+    },
+    "ui:card": {
+      "props": {
+        "variant": {
+          "values": [
+            "inset",
+            "outline"
+          ]
+        }
+      }
+    },
+    "ui:divider": {},
+    "ui:spacer": {
+      "props": {
+        "size": {
+          "range": [
+            1,
+            8
+          ]
+        }
+      }
+    },
+    "ui:text": {
+      "props": {
+        "variant": {
+          "values": [
+            "title",
+            "subtitle",
+            "muted",
+            "strong",
+            "code"
+          ]
+        }
+      }
+    },
+    "ui:badge": {
+      "props": {
+        "variant": {
+          "values": [
+            "brand",
+            "danger",
+            "warn",
+            "success"
+          ]
+        }
+      }
+    },
+    "ui:button": {
+      "props": {
+        "variant": {
+          "values": [
+            "primary",
+            "ghost",
+            "danger",
+            "icon"
+          ]
+        }
+      },
+      "flags": [
+        "block"
+      ],
+      "note": "including `<a>`"
+    },
+    "ui:icon": {
+      "props": {
+        "name": {
+          "values": [
+            "check",
+            "x",
+            "chevron-down",
+            "search",
+            "plus",
+            "dot",
+            "menu"
+          ]
+        }
+      },
+      "hosts": [
+        "svg"
+      ],
+      "note": "writes the sprite `<use>`"
+    },
+    "ui:image": {
+      "props": {
+        "ratio": {
+          "pattern": "^\\s*\\d+(?:\\.\\d+)?(?:\\s*\\/\\s*\\d+(?:\\.\\d+)?)?\\s*$",
+          "hint": "a CSS aspect-ratio, e.g. \"3/2\" or \"1.5\""
+        }
+      },
+      "hosts": [
+        "img"
+      ],
+      "note": "error fallback class"
+    },
+    "ui:field": {},
+    "ui:input": {
+      "hosts": [
+        "input"
+      ],
+      "note": "control class"
+    },
+    "ui:textarea": {
+      "hosts": [
+        "textarea"
+      ],
+      "note": "control class"
+    },
+    "ui:select": {
+      "hosts": [
+        "select"
+      ],
+      "note": "control class"
+    },
+    "ui:checkbox": {
+      "hosts": [
+        "input"
+      ],
+      "note": "checkable control"
+    },
+    "ui:popover": {
+      "props": {
+        "anchor": {
+          "hint": "a CSS selector, e.g. \"#btn\""
+        },
+        "placement": {
+          "values": [
+            "bottom-start",
+            "bottom-end",
+            "top-start",
+            "top-end"
+          ]
+        }
+      },
+      "requiresAttr": "popover",
+      "note": "opened by a `popovertarget` invoker button"
+    },
+    "ui:modal": {
+      "hosts": [
+        "dialog"
+      ],
+      "note": "open with `command=\"show-modal\" commandfor=\"id\"` buttons — zero JS"
+    },
+    "ui:tabs": {
+      "note": "needs `role=tab/tablist/tabpanel` markup — arrow keys + Home/End included"
+    },
+    "ui:reveal": {
+      "props": {
+        "from": {
+          "values": [
+            "fade",
+            "up",
+            "down",
+            "left",
+            "right",
+            "zoom"
+          ]
+        },
+        "trigger": {
+          "values": [
+            "scroll",
+            "load"
+          ]
+        },
+        "stagger": {
+          "range": [
+            0,
+            8
+          ],
+          "hint": "an integer 0..8 (each step is 80ms)"
+        }
+      },
+      "note": "scroll-driven entrance animation; `trigger=\"load\"` animates on load instead"
+    }
+  }
+}
