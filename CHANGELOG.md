@@ -5,6 +5,23 @@ Format based on [Keep a Changelog](https://keepachangelog.com/); versioning foll
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-09-25
+
+### Added
+- **Cross-file components**: `ui:use="/components/card.html#card"` imports a
+  component template from its own file — fetched once, cached per url#id,
+  script-stripped by design. Props, per-instance state, behavior, and nesting
+  work identically to same-document templates
+  (`docs/examples/component-files.html`).
+- Governance for the open-source lifecycle: CONTRIBUTING.md (PR standards,
+  slop reject-list), MAINTAINERS.md (review bar, judge-loop, release process),
+  PR/issue templates, CI workflow (typecheck + full Chromium suite per PR),
+  CHANGELOG, CODE_OF_CONDUCT, SECURITY policy, README badges.
+
+### Fixed
+- `ui:use` host props no longer capture `data-*`/`aria-*` (naming.md rule 1).
+- Version honesty: `package.json` is the single source of truth for the
+  reported runtime version.
 ## [0.1.2] — 2026-09-25
 
 ### Fixed

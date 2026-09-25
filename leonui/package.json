@@ -1,6 +1,6 @@
 {
   "name": "leonui",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Typed reactive UI runtime: author plain HTML + ui:* attributes — signals, keyed lists, closed effect-verb catalog, no build step, no vdom. Agent-first: ships with its own skill.",
   "type": "module",
   "module": "./dist/leonui.js",

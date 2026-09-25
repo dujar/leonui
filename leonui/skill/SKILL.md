@@ -83,7 +83,7 @@ A component is a subtree: markup + state + behavior together. Three reuse mechan
 
 1. **Scoped subtree** — any element with `ui:state` is an independent instance; copying the block duplicates the widget with isolated state.
 2. **`ui:use` templates (default choice for repetition):**
-   **Cross-file** (fetched once, cached, script-stripped): `ui:use="/components/card.html#card"` — the file holds `<template id="card">`.
+   **Cross-file** (fetched once, cached, script-stripped): `ui:use="/components/card.html#card"` — the file holds `<template id="card">`. Live example: `/docs/examples/component-files.html` (components in `components/`).
 
    ```html
    <template id="stat-tile">
