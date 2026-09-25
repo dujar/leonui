@@ -1,0 +1,11 @@
+<!doctype html><html lang="en"><head><title>custom element component</title><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/src/ui.css"><style>body{padding:1.25rem;font-size:15px}</style></head>
+<body>
+  <p style="margin:0 0 8px">Three instances of one custom element — behavior included:</p>
+  <div ui:row gap="4" wrap>
+    <x-counter label="votes" start="5"></x-counter>
+    <x-counter label="likes" start="0"></x-counter>
+    <x-counter label="views" start="1024"></x-counter>
+  </div>
+<script type="module" src="/dist/leonui.js"></script>
+<script type="module" src="/docs/examples/component-element.js"></script>
+</body></html>

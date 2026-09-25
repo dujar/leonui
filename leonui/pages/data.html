@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data — leonui</title><link rel="stylesheet" href="/src/ui.css"></head>
+<body ui:state="items: [ { id: 1, t: 'A' }, { id: 2, t: 'B' }, { id: 3, t: 'C' } ];
+                sort: 'name';
+                people: [ { name: 'Cara', age: 20 }, { name: 'Abe', age: 31 }, { name: 'Bea', age: 28 } ]"
+      ui:computed="sorted: sortBy(people, sort)">
+
+  <h1 class="ui-t-title">Data</h1>
+
+  <h2 class="ui-t-subtitle">Keyed list — add / remove / rotate</h2>
+  <div ui:row gap="3">
+    <button id="list-add" ui:button ui:fx="click: set items = [ ...items, { id: items.length + 10, t: 'N' + (items.length + 1) } ]">Add</button>
+    <button id="list-drop" ui:button ui:fx="click: set items = without(items, first(items))">Drop first</button>
+    <button id="list-rot" ui:button ui:fx="click: set items = [ ...without(items, first(items)), first(items) ]">Rotate</button>
+  </div>
+  <ul id="list1" class="ui-list">
+    <li ui:each="it in items" ui:key="id" class="ui-list-item" data-item>
+      <span class="ui-list-title" ui:bind="text: it.t"></span>
+      <button class="ui-btn ui-btn-icon" ui:fx="click: set items = without(items, it)" aria-label="remove"><svg ui:icon name="x"></svg></button>
+    </li>
+  </ul>
+  <p id="list-empty" class="ui-state" ui:bind="hidden: items.length != 0">list is empty</p>
+  <p id="list-count" ui:bind="text: items.length + ' items'"></p>
+
+  <h2 class="ui-t-subtitle">Remote cells — loading / ok / error + refetch</h2>
+  <div ui:stack gap="4" id="remote-zone">
+    <div id="remote-fast" ui:state="feed: GET /api/tasks?slow=1">
+      <p id="rf-loading" class="ui-state" ui:bind-hidden="feed.status != 'loading'">loading…</p>
+      <p id="rf-error" class="ui-state ui-state-error" ui:bind-hidden="feed.status != 'error'" ui:bind-text="'error: ' + feed.data"></p>
+      <p id="rf-ok" ui:bind-hidden="feed.status != 'ok'" ui:bind-text="feed.data.length + ' tasks loaded'"></p>
+      <button id="rf-refetch" ui:button ui:fx="click: refetch feed">Refetch</button>
+    </div>
+    <div id="remote-boom" ui:state="broken: GET /api/boom">
+      <p id="rb-status" ui:bind="text: broken.status"></p>
+    </div>
+    <div ui:row gap="3">
+      <button id="call-fail" ui:button
+              ui:fx="click: call PATCH /api/tasks/1?fail=1&slow=1 with { done: true } optimistic: set sort = 'PATCHED'; onfail: toast 'rolled back'">
+        Failing PATCH (optimistic + rollback)
+      </button>
+      <span id="call-fail-echo" ui:bind="text: 'sort = ' + sort"></span>
+    </div>
+  </div>
+
+  <h2 class="ui-t-subtitle">Table — computed sortBy, sortable</h2>
+  <table class="ui-table" id="table1">
+    <thead><tr>
+      <th><button id="sort-name" ui:button variant="ghost" ui:fx="click: set sort = 'name'">Name</button></th>
+      <th><button id="sort-age" ui:button variant="ghost" ui:fx="click: set sort = 'age'">Age</button></th>
+    </tr></thead>
+    <tbody>
+      <tr ui:each="p in sorted" ui:key="name">
+        <td ui:bind="text: p.name"></td>
+        <td ui:bind="text: p.age"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 class="ui-t-subtitle">Scope shadowing — nearest ui:state wins</h2>
+  <section ui:state="who: 'outer'" id="shadow-outer">
+    <span id="who-out" ui:bind="text: who"></span>
+    <div ui:state="who: 'inner'" id="shadow-inner">
+      <span id="who-in" ui:bind="text: who"></span>
+      <span id="who-in-sees-outer-only" ui:bind="text: 'inner sees: ' + who"></span>
+    </div>
+    <button id="shadow-set" ui:button ui:fx="click: set who = 'changed'">Set outer who</button>
+  </section>
+
+<script type="module" src="/dist/leonui.js"></script>
+</body>
+</html>

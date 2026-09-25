@@ -1,8 +1,0 @@
-<!doctype html><html lang="en"><head><title>counter</title><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/src/ui.css"><style>body{padding:1.25rem;font-size:15px}</style></head>
-<body ui:state="count: 0">
-  <p>Count: <b ui:bind="text: count"></b> <span class="ui-badge ui-b-brand" ui:bind="hidden: count < 10">high</span></p>
-  <button ui:fx="click: set count = count + 1">+1</button>
-  <button ui:fx="click: set count = count - 1">-1</button>
-  <button ui:fx="click: set count = 0">reset</button>
-<script type="module" src="/dist/leonxstream.js"></script>
-</body></html>

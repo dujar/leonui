@@ -1,0 +1,24 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hello world — leonui docs</title>
+<link rel="stylesheet" href="/docs/docs.css">
+</head>
+<body class="docs">
+<nav id="docs-nav"><a class="brand" href="/docs/">leonui docs</a></nav>
+<main>
+<h1>Hello world</h1>
+<p>The smallest reactive page. State is declared on <code>&lt;body&gt;</code> with <code>ui:state</code>; the <code>&lt;b&gt;</code> binds its text to the <code>name</code> signal; the buttons are events mapped to <code>set</code> verbs.</p>
+
+<div data-example="/docs/examples/hello.html"></div>
+
+<h2>What just happened</h2>
+<ul>
+  <li>At load, the runtime walks the DOM once. <code>ui:state</code> becomes a <em>signal</em> attached to the declaring element.</li>
+  <li><code>ui:bind="text: name"</code> evaluated <code>name</code> and subscribed to it — <em>that element's text only</em>. No re-render exists in this framework.</li>
+  <li><code>ui:fx="click: set name = 'leonui'"</code> mapped the click to one verb. The <code>set</code> flipped the signal, which woke exactly the bindings that read it.</li>
+</ul>
+<p>Signals resolve by walking <em>up</em> the ancestor chain — the DOM tree is your scope chain. Declare state as high as your page needs it.</p>
+<div class="next">Next → <a href="/docs/state-and-binds.html">State & binds</a></div>
+</main>
+<script src="/docs/docs.js"></script>
+</body></html>

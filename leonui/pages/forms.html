@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forms — leonui</title><link rel="stylesheet" href="/src/ui.css"></head>
+<body ui:state="name: ''; color: 'green'; accepted: false; locked: true; submitted: false">
+  <h1 class="ui-t-title">Forms</h1>
+
+  <form id="form-submit" ui:fx="submit: set submitted = true">
+    <input id="inp-hidden" type="text" name="noop">
+    <button id="btn-submit" type="submit">Submit</button>
+  </form>
+  <p id="echo-submitted" ui:bind="text: submitted ? 'submitted' : 'not submitted'"></p>
+
+  <form id="form1">
+    <div ui:stack gap="4">
+      <div class="ui-field" ui:field>
+        <label for="inp-name">Name (two-way ui:model)</label>
+        <input id="inp-name" ui:input type="text" ui:model="name" placeholder="type…">
+      </div>
+      <p id="echo-name" ui:bind="text: name == '' ? '(empty)' : 'hello ' + name"></p>
+
+      <div class="ui-field" ui:field>
+        <label for="inp-bio">Bio (field-sizing: content)</label>
+        <textarea id="inp-bio" ui:textarea ui:model="name" rows="2"></textarea>
+      </div>
+
+      <div class="ui-field" ui:field>
+        <label for="sel-color">Color</label>
+        <select id="sel-color" ui:select ui:model="color">
+          <option value="red">red</option>
+          <option value="green" selected>green</option>
+          <option value="blue">blue</option>
+        </select>
+      </div>
+      <p id="echo-color" ui:bind="text: 'color = ' + color"></p>
+
+      <label class="ui-row" gap="2" for="chk-acc">
+        <input id="chk-acc" ui:checkbox type="checkbox" ui:bind-checked="accepted"
+               ui:fx="change: toggle accepted">
+        <span>Accept terms (checked ⇄ signal)</span>
+      </label>
+      <p id="echo-acc" ui:bind="text: accepted ? 'accepted' : 'not accepted'"></p>
+    </div>
+  </form>
+
+  <hr class="ui-divider">
+
+  <h2 class="ui-t-subtitle">Buttons — variants + states</h2>
+  <div ui:row gap="3" wrap>
+    <button id="btn-default" ui:button>Default</button>
+    <button id="btn-primary" ui:button variant="primary">Primary</button>
+    <button id="btn-ghost" ui:button variant="ghost">Ghost</button>
+    <button id="btn-danger" ui:button variant="danger">Danger</button>
+    <button id="btn-icon" ui:button variant="icon" aria-label="add"><svg ui:icon name="plus"></svg></button>
+  </div>
+  <div ui:stack gap="3" style="margin-top:12px">
+    <button id="btn-lock" ui:button variant="primary" block ui:fx="click: toggle locked">Toggle lock</button>
+    <button id="btn-gated" ui:button block ui:bind="disabled: locked">Danger zone (disabled while locked)</button>
+    <button id="btn-reset" ui:button ui:fx="click: reset '#form1'; focus '#inp-name'">Reset form + focus name</button>
+    <button id="btn-focus" ui:button ui:fx="click: focus '#inp-name'">Focus name field</button>
+  </div>
+  <p id="echo-lock" ui:bind="text: locked ? 'locked' : 'unlocked'"></p>
+
+<script type="module" src="/dist/leonui.js"></script>
+</body>
+</html>
