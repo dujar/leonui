@@ -1,0 +1,16 @@
+<!doctype html><html lang="en"><head><title>drag to reorder</title>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="/src/ui.css"><style>body{padding:1.25rem;font-size:15px}</style></head>
+<body ui:state="queue: [ { id: 1, t: 'write the spec' }, { id: 2, t: 'review the PR' }, { id: 3, t: 'ship it' } ]">
+  <p class="ui-t-muted" style="margin:0 0 8px">Drag rows to reorder — data order updates live:</p>
+  <div class="ui-card" style="padding:8px 16px">
+    <ul class="ui-list" id="queue">
+      <li ui:each="t in queue" ui:key="id" ui:sortable class="ui-list-item">
+        <svg ui:icon name="menu"></svg>
+        <span class="ui-list-title" style="flex:1" ui:bind="text: t.t"></span>
+      </li>
+    </ul>
+  </div>
+  <p class="ui-t-muted" style="margin:8px 0 0">First: <b ui:bind="text: first(queue).t"></b> — the array was rewritten, not just the DOM.</p>
+<script type="module" src="/dist/leonxstream.js"></script>
+</body></html>

@@ -18,6 +18,13 @@
   <li><strong>Empty state:</strong> a notice bound with <code>ui:bind-hidden="todos.length != 0"</code>.</li>
 </ul>
 <p>Because binds are fine-grained, toggling or removing one item touches exactly that item's bindings.</p>
+<h2>Drag to reorder</h2>
+<p>Add <code>ui:sortable</code> to the <code>ui:each</code> template and the list becomes drag-orderable. This is a <strong>Tier-3 primitive</strong>: you declare <em>what</em> — the primitive owns <em>how</em>. Drag previews the new order live; on drop the runtime writes the reordered array back as an immutable replacement, and the keyed render re-aligns. State, not the drag gesture, is the source of truth.</p>
+
+<div data-example="/docs/examples/sortable.html"></div>
+
+<p>Rows get <code>draggable</code>, grab cursors and the dragging opacity from the shipped stylesheet. Implementation is HTML5 drag-and-drop (desktop); pointer/touch input and keyboard moves are roadmap. Because it is one attribute, <code>ui check</code> can see it, and it composes with everything else on the row — binds, verbs, per-row removal.</p>
+
 <div class="next">Next → <a href="/docs/forms.html">Forms</a></div>
 </main>
 <script src="/docs/docs.js"></script>

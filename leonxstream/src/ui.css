@@ -159,6 +159,9 @@
   .ui-list > * + * { border-top: 1px solid var(--line); }
   .ui-list-item { display: flex; align-items: center; gap: var(--ui-gap-4); padding: var(--ui-gap-4) var(--ui-gap-2); }
   .ui-list-item.done .ui-list-title { text-decoration: line-through; color: var(--muted); }
+  [draggable="true"] { cursor: grab; }
+  [draggable="true"]:active { cursor: grabbing; }
+  .ui-dragging { opacity: .35; }
   .ui-table { width: 100%; border-collapse: collapse; font-size: var(--ui-text-2); }
   .ui-table th { text-align: left; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--line); padding: var(--ui-gap-3); }
   .ui-table td { border-bottom: 1px solid var(--line); padding: var(--ui-gap-3); }

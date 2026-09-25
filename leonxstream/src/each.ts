@@ -3,6 +3,7 @@ import type { Signal } from './types.ts';
 import { scopes, sig, resolvePath, track } from './signals.ts';
 import { warn } from './signals.ts';
 import { attachSubtree } from './scan.ts';
+import { makeSortable } from './sortable.ts';
 
 export function attachEach(el: Element): void {
   const attr = el.getAttribute('ui:each')!.trim();
@@ -15,15 +16,19 @@ export function attachEach(el: Element): void {
   const template = el.cloneNode(true) as Element;
   const parent = el.parentElement;
   if (!parent) throw new Error('ui: each template has no parent');
+  const sortable = el.hasAttribute('ui:sortable');
   const anchor = document.createComment('ui:each');
   parent.insertBefore(anchor, el);
   el.remove();
+
+
 
   interface Row {
     row: Element;
     itemSig: Signal;
   }
   const rows = new Map<string | number, Row>();
+  if (sortable) makeSortable({ parent, rows, anchor, listRef });
   const readList = (): unknown => {
     let v: unknown = listRef.sig.value;
     for (const s of listRef.segs) v = (v as Record<string, unknown> | null | undefined)?.[s];
@@ -42,6 +47,10 @@ export function attachEach(el: Element): void {
         const row = template.cloneNode(true) as Element;
         const itemSig = sig(item);
         scopes.set(row, { signals: new Map([[itemName, itemSig]]), meta: new Map() });
+        if (sortable) {
+          row.setAttribute('draggable', 'true');
+          row.setAttribute('data-sort-key', String(key));
+        }
         parent!.insertBefore(row, anchor);
         attachSubtree(row);
         r = { row, itemSig };
