@@ -4,26 +4,30 @@
  * here: this file applies them, it does not decide what is legal. Values are
  * validated before they are applied, so a wrong value is a named warning and a
  * fallback to the default — never a class nothing styles. */
-import { warn } from './signals.ts';
+import { canQueryPopoverOpen, warn } from './signals.ts';
 import { ENHANCER_SPECS, ICONS, enhancerAttrProblems, enhancerProblems, enhancerRejects, rejectedProps } from './vocab.ts';
 
 let anchorSeq = 0;
 
 /** Keep every invoker of a popover's `aria-expanded` equal to the popover's real
- * state. The invokers are looked up on each sync rather than captured once: a
- * popover and its button can be attached in either order, and one of them may
- * arrive from a `ui:use` template after the other has already run.
+ * state. The invokers are looked up on each sync rather than captured once, so the
+ * popover and its button may be attached in either order.
+ *
+ * What that does NOT cover: an invoker inserted into the DOM *after* the popover
+ * was attached gets no `aria-expanded` until the popover is next toggled. That is
+ * a real gap, not a claim — closing it would mean observing the document for
+ * invokers, which is a mutation observer per popover for a state the platform
+ * re-derives on the next toggle anyway.
  *
  * A popover with no invoker is left completely alone — `ui:popover` is also used
  * for popovers opened by script, and those have no button to annotate. */
 function syncPopoverExpanded(el: Element): void {
   const id = el.id;
   if (!id) return;
-  const invokers = (): Element[] =>
-    [...document.querySelectorAll(`[popovertarget="${CSS.escape(id)}"], [commandfor="${CSS.escape(id)}"]`)];
+  const sel = `[popovertarget="${CSS.escape(id)}"], [commandfor="${CSS.escape(id)}"]`;
   const sync = (): void => {
-    const open = el.matches(':popover-open');
-    for (const b of invokers()) b.setAttribute('aria-expanded', String(open));
+    const open = canQueryPopoverOpen() && el.matches(':popover-open');
+    for (const b of document.querySelectorAll(sel)) b.setAttribute('aria-expanded', String(open));
   };
   sync();
   el.addEventListener('toggle', sync);
@@ -279,7 +283,28 @@ export const ENHANCERS: Record<string, Enhancer> = {
 /** `attrs` is passed in by the attach hot path so the element's attribute list is
  * materialised once per element instead of once per pass. `rowIndex` is forwarded
  * to every enhancer; only `ui:reveal` reads it (see the Enhancer type above). */
-export function attachEnhancers(el: Element, attrs: Attr[] = [...el.attributes], rowIndex = -1): void {
+/** The static half of enhancer validation — host, required native attributes,
+ * required companion attributes — without applying anything.
+ *
+ * It exists for the `ui:each` template, whose subtree never reaches
+ * `attachElement` when the list is empty: the element is pulled out of the tree
+ * and cloned per row, so with no rows there is nothing to attach and a wrong
+ * host inside the template was silent at runtime while `ui check`, which reads
+ * the same table over the same markup, reported it. Reported here once per
+ * markup site, which is also what stops a list of 50 rows from printing the
+ * same complaint 50 times. */
+export function enhancerStaticPass(el: Element, attrs: Attr[]): void {
+  const host = el.tagName.toLowerCase();
+  const has = (attr: string): boolean => el.hasAttribute(attr);
+  const get = (prop: string): string | null => el.getAttribute(prop);
+  for (const a of attrs) {
+    if (!Object.hasOwn(ENHANCER_SPECS, a.name)) continue;
+    for (const msg of enhancerProblems(a.name, get, { host, has })) warn(msg);
+    for (const msg of enhancerAttrProblems(a.name, attrs.map(x => x.name))) warn(msg);
+  }
+}
+
+export function attachEnhancers(el: Element, attrs: Attr[] = [...el.attributes], rowIndex = -1, staticChecked = false): void {
   for (const a of attrs) {
     // hasOwn, not `in`: plain-object lookup would treat `toString`/`constructor`
     // as enhancers and call Object.prototype members on the element
@@ -305,8 +330,14 @@ export function attachEnhancers(el: Element, attrs: Attr[] = [...el.attributes],
       const has = (attr: string): boolean => el.hasAttribute(attr);
       const get = (prop: string): string | null => el.getAttribute(prop);
       const skip = enhancerRejects(a.name, { host, has }) !== null;
-      for (const msg of enhancerProblems(a.name, get, { host, has })) warn(msg);
-      for (const msg of enhancerAttrProblems(a.name, attrs.map(x => x.name))) warn(msg);
+      // The verdict is always needed — a wrong host must not apply, row or not.
+      // The *wording* is not: a row is a clone of markup that was already
+      // reported once at the `ui:each` site, so re-printing it per item turns
+      // one mistake into N lines and drowns everything else on the page.
+      if (!staticChecked) {
+        for (const msg of enhancerProblems(a.name, get, { host, has })) warn(msg);
+        for (const msg of enhancerAttrProblems(a.name, attrs.map(x => x.name))) warn(msg);
+      }
       if (skip) continue;
       for (const prop of rejectedProps(a.name, get)) el.removeAttribute(prop);
       impl(el, rowIndex);

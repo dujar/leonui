@@ -98,6 +98,25 @@ t('dismiss: the same verb closes a modal <dialog> from the inside', async () => 
   await p.close();
 });
 
+t('dismiss: walks past a closed <dialog> instead of stopping at it', async () => {
+  // The bug this pins: the walk used to `return` at the nearest `<dialog>`
+  // whatever its state. An element inside a *closed* dialog that itself sits
+  // inside an open popover then closed nothing and warned nothing — a silent
+  // no-op, which is the one outcome `dismiss` promises never to produce.
+  const p = await open();
+  await p.eval(`document.getElementById('outer-btn').click()`);
+  await p.waitFor(`document.getElementById('outer').matches(':popover-open')`);
+  assert.equal(await p.eval<boolean>(`document.getElementById('inner-dlg').open`), false, 'the inner dialog is shut');
+
+  // the dialog's content is not rendered, so this is the only way to reach the
+  // button — but a programmatic click is the same event the verb listens for
+  await p.eval(`document.getElementById('past-dlg').click()`);
+  await p.waitFor(`!document.getElementById('outer').matches(':popover-open')`);
+  assert.equal(await isOpen(p, 'outer'), false, 'the open popover outside the closed dialog must still close');
+  assert.deepEqual(await p.eval<string[]>('window.__ui.warns'), [], 'and it must not warn about a miss it did not have');
+  await p.close();
+});
+
 t('dismiss: with nothing to dismiss it names the miss instead of doing nothing', async () => {
   const p = await open();
   assert.deepEqual(await p.eval<string[]>('window.__ui.warns'), []);
@@ -135,14 +154,19 @@ t('a11y: ui:popover keeps its invoker\'s aria-expanded in step with the popover'
   await p.close();
 });
 
-t('a11y: a popover with no invoker is left alone, and a dialog is not annotated', async () => {
+t('a11y: exactly the popover invokers are annotated, and nothing else is', async () => {
   const p = await open();
-  // #scripted is opened by script. There is no button to describe, so the enhancer
+  // Named, not counted. A bare count would pass if the attribute landed on the
+  // wrong elements — or on the right number of the wrong ones.
+  const annotated = await p.eval<string[]>(`[...document.querySelectorAll('[aria-expanded]')].map(el => el.id).sort()`);
+  assert.deepEqual(annotated, ['act-btn', 'nav-btn', 'outer-btn'],
+    'only the elements that name a popover carry aria-expanded');
+
+  // #scripted is opened by script: there is no button to describe, so the enhancer
   // must not invent one — and it must not throw on the way.
-  assert.equal(await p.eval<number>(`document.querySelectorAll('[aria-expanded]').length`), 2,
-    'exactly the two popover invokers, nothing else');
   assert.deepEqual(await p.eval<string[]>('window.__ui.warns'), []);
   assert.equal(await p.eval<boolean>(`document.getElementById('scripted').matches(':popover-open')`), false);
+
   // a <dialog> button carries no aria-expanded: the dialog announces itself, and
   // `aria-expanded` on a modal opener is a convention nobody follows
   assert.equal(await p.eval<string | null>(`document.getElementById('dlg-btn').getAttribute('aria-expanded')`), null);

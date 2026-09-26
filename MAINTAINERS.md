@@ -46,7 +46,7 @@ done. Cheapest form: a fresh agent asked to "find what kills this."
    this by comparing against `package.json`.
 3. `bun run build` (emits both ESM and IIFE bundles).
 4. Full suite: `bun test tests/` — must be all green on the exact build.
-5. `npm publish` (the pack is ~123 kB / 68 files — the `files` list ships `dist`,
+5. `npm publish` (the pack is ~128 kB / 68 files — the `files` list ships `dist`,
    `src`, `skill`, `pages` and `docs`, and `pages/landing.html` alone is 23 kB.
    Verify with `npm pack --dry-run` if the files list changed).
 6. Commit, tag (npm version does this), push with `--tags`.

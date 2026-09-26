@@ -1,6 +1,6 @@
 /* fx.ts — events → closed effect-verb catalog */
 import type { Verb } from './types.ts';
-import { resolvePath, readPath, writeRef, setPath, scopes, warn } from './signals.ts';
+import { canQueryPopoverOpen, resolvePath, readPath, writeRef, setPath, scopes, warn } from './signals.ts';
 import { safeEval } from './parser.ts';
 import { fetchCell } from './state.ts';
 import { VERB_NAMES } from './vocab.ts';
@@ -95,23 +95,6 @@ function doNav(sel: string): void {
   else go();
 }
 
-/** `:popover-open` is the only way to ask "is this popover open?" — `[popover]`
- * is present whether it is open or not, and there is no property for it. It is
- * also newer than the `popover` attribute itself, so a browser that supports the
- * attribute may still throw a SyntaxError on the selector. Detected once. */
-let popoverOpenSelector: boolean | null = null;
-function canQueryPopoverOpen(): boolean {
-  if (popoverOpenSelector === null) {
-    try {
-      document.createElement('div').matches(':popover-open');
-      popoverOpenSelector = true;
-    } catch {
-      popoverOpenSelector = false;
-    }
-  }
-  return popoverOpenSelector;
-}
-
 /** Close the overlay this element sits inside — the nearest open popover or
  * `<dialog>`, walking outward.
  *
@@ -124,12 +107,18 @@ function canQueryPopoverOpen(): boolean {
  * which is exactly the kind of thing the verb catalog exists to hold instead.
  *
  * A miss is named rather than silent, for the same reason `focus` names one: an
- * element that was never inside an overlay looks like a broken button. */
+ * element that was never inside an overlay looks like a broken button.
+ *
+ * The walk *continues* past a `<dialog>` that is already closed, and past a
+ * popover that is not open. Stopping at any element merely because it is the
+ * right kind of thing would swallow the walk: an element inside a closed dialog
+ * that itself sits inside an open popover would close nothing and warn nothing,
+ * which is the one outcome this verb promises never to produce. */
 function doDismiss(el: Element): void {
   for (let n: Element | null = el; n; n = n.parentElement) {
     if (n instanceof HTMLDialogElement) {
-      if (n.open) n.close();
-      return;
+      if (n.open) { n.close(); return; }
+      continue;
     }
     if (canQueryPopoverOpen() && n.matches(':popover-open')) {
       (n as HTMLElement).hidePopover();

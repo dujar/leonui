@@ -5,7 +5,7 @@ description: Author interactive UI as plain HTML + leonui attributes (ui:state, 
 
 # leonui
 
-Typed reactive UI runtime. **HTML is the schema; the browser is the framework.** You author plain HTML plus a small attribute grammar (five families plus satellites); a ~32.3 KB runtime (12.0 KB gzipped; `dist/leonui.js`, auto-boots on import) provides signals, fine-grained binds, keyed lists, a closed effect-verb catalog, and validation that turns every malformed attribute into a named warning. No build step, no components, no vdom. The stylesheet `src/ui.css` is a separate optional file (12.5 KB min / 3.6 KB gzipped) that supplies the enhancer classes below. Verify your markup without a browser with `ui check` (see **Verifying a page**).
+Typed reactive UI runtime. **HTML is the schema; the browser is the framework.** You author plain HTML plus a small attribute grammar (five families plus satellites); a ~33.5 KB runtime (12.5 KB gzipped; `dist/leonui.js`, auto-boots on import) provides signals, fine-grained binds, keyed lists, a closed effect-verb catalog, and validation that turns every malformed attribute into a named warning. No build step, no components, no vdom. The stylesheet `src/ui.css` is a separate optional file (13.7 KB min / 4.1 KB gzipped) that supplies the enhancer classes below. Verify your markup without a browser with `ui check` (see **Verifying a page**).
 
 ## The attribute families
 

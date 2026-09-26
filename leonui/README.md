@@ -3,11 +3,11 @@
 **HTML is the schema; the browser is the framework.**
 
 leonui is a typed reactive UI runtime for plain HTML. You author regular markup plus a small
-attribute grammar — five families, fewer than 30 `ui:*` names — and a ~32 KB runtime
-(12.0 KB gzipped) provides signals, fine-grained binds, keyed lists, a closed catalog of
+attribute grammar — five families, fewer than 30 `ui:*` names — and a ~33.5 KB runtime
+(12.5 KB gzipped) provides signals, fine-grained binds, keyed lists, a closed catalog of
 effect verbs, entrance animation, and validation that turns every malformed attribute into a
 named warning, compiled onto modern browser platform APIs. The stylesheet (`ui.css`) is a
-separate, optional file: 12.5 KB minified, 3.6 KB gzipped.
+separate, optional file: 13.7 KB minified, 4.1 KB gzipped.
 
 **No build step. No components. No vdom. No eval. No arbitrary JavaScript in markup.**
 The expression language is a whitelist AST, every runtime warning is collected in
@@ -467,12 +467,13 @@ CDP. **`benchmark.md` is the only place measured numbers live**, because every r
 them; this section deliberately summarises rather than restates.
 
 The one figure that is architectural rather than timing noise: the complete leonui runtime
-minifies to **32.3 KB (12.0 KB gzipped)**, and the optional stylesheet adds 12.5 KB
-(3.6 KB gzipped) — 44.8 KB / 15.6 KB together, still less than any single runtime it is
-compared against. Three passes paid for correctness rather than features: the vocabulary pass
+minifies to **33.5 KB (12.5 KB gzipped)**, and the optional stylesheet adds 13.7 KB
+(4.1 KB gzipped) — 47.3 KB / 16.6 KB together, still less than any single runtime it is
+compared against. Four passes paid for correctness rather than features: the vocabulary pass
 that turned malformed markup into a named warning cost ~4.6 KB minified, the
-companion-attribute contract plus `ui:reveal` cost a further ~3.2 KB, and the judge pass that
-made the runtime and `ui check` agree about an empty list cost a further ~1.3 KB. All three
+companion-attribute contract plus `ui:reveal` cost a further ~3.2 KB, and the two judge passes
+that made the runtime and `ui check` agree about an empty list and about a wrong host inside a
+template cost a further ~2.5 KB. All four
 are read from the same table `ui check` uses, so the two can never disagree.
 
 The benchmark's own honest reading, which this README endorses rather than edits around:

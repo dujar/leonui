@@ -21,6 +21,30 @@ export const guard = (fn: () => void, kind?: string, el?: Element) => {
   try { fn(); } catch (e) { warnAttach(kind ?? '', el, e); }
 };
 
+/** Can this browser be asked whether a popover is open?
+ *
+ * `:popover-open` is the only way to ask — `[popover]` is present whether the
+ * popover is open or not, and there is no property for it — but the selector is
+ * newer than the attribute, so a browser can support `popover` and still throw a
+ * SyntaxError on the selector. `Element.matches` throwing is not a degraded
+ * answer, it is a broken attach: it aborts whatever pass called it.
+ *
+ * Shared rather than duplicated because two callers need it — `fx.ts`'s `dismiss`
+ * and `enhancers.ts`'s invoker sync — and the first draft of the latter had no
+ * guard at all, which is exactly how the divergence happens. Detected once. */
+let popoverOpenSelector: boolean | null = null;
+export function canQueryPopoverOpen(): boolean {
+  if (popoverOpenSelector === null) {
+    try {
+      document.createElement('div').matches(':popover-open');
+      popoverOpenSelector = true;
+    } catch {
+      popoverOpenSelector = false;
+    }
+  }
+  return popoverOpenSelector;
+}
+
 /* ---------- dependency tracking ---------- */
 let CUR: Set<Set<() => void>> | null = null;
 let BAG: Array<() => void> | null = null;

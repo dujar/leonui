@@ -6,7 +6,7 @@ import type { Scope } from './types.ts';
 import { coerce, attachState, attachComputed } from './state.ts';
 import { attachEach } from './each.ts';
 import { attachBinds, attachModel } from './binds.ts';
-import { attachEnhancers } from './enhancers.ts';
+import { attachEnhancers, enhancerStaticPass } from './enhancers.ts';
 import { attachFx } from './fx.ts';
 import { ALL_UI_ATTRS, CORE_ATTRS, CORE_ATTRS_WITH_REQUIREMENTS, ENHANCER_NAMES, attrRejects, coreAttrProblems, isBindAttr, requirementProblems, suggest } from './vocab.ts';
 
@@ -192,7 +192,7 @@ function attachElement(el: Element, attrs: Attr[], staticChecked = false, rowInd
   if (!staticChecked) { try { checkVocab(attrs); } catch (e) { warnAttach('vocab', el, e); } }
   let refused = new Set<string>();
   try { refused = requirementPass(el, attrs, !staticChecked); } catch (e) { warnAttach('requires', el, e); }
-  try { attachEnhancers(el, attrs, rowIndex); } catch (e) { warnAttach('enhance', el, e); }
+  try { attachEnhancers(el, attrs, rowIndex, staticChecked); } catch (e) { warnAttach('enhance', el, e); }
   try { attachBinds(el, attrs); } catch (e) { warnAttach('bind', el, e); }
   // ui:model on a non-control writes `.value` onto an expando and subscribes to
   // input/change events that element can never fire: refuse it, having said so.
@@ -244,6 +244,12 @@ export function attach(root: Element | DocumentFragment): void {
         const a = attrsOf(t);
         try { checkVocab(a); } catch (e) { warnAttach('vocab', t, e); }
         try { requirementPass(t, a); } catch (e) { warnAttach('requires', t, e); }
+        // the host/companion half of the vocabulary. `ui check` reads the same
+        // table over the same markup, so leaving this out made an empty list the
+        // one case where the two halves disagreed: the checker reported a wrong
+        // host inside the template and the runtime, having no rows to attach,
+        // said nothing at all.
+        try { enhancerStaticPass(t, a); } catch (e) { warnAttach('enhance', t, e); }
         if (t !== el) { try { rowInertWarnings(t, a); } catch (e) { warnAttach('vocab', t, e); } }
       }
       try { attachEach(el); } catch (e) { warnAttach('each', el, e); }

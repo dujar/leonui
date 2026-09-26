@@ -177,6 +177,35 @@ t('parity: an attribute a ui:each row can never honour is named, not ignored', a
   }
 });
 
+t('parity: a wrong host inside a template is judged the same by both halves', async () => {
+  // The same shape of case as the empty list above, one pass in. The template walk
+  // covered the vocabulary and the companion requirements, but not the *host*: an
+  // enhancer that only works on one tag. So `ui:icon` on a `<span>` inside a
+  // template was reported by `ui check` and by nothing else — and with an empty
+  // list there was no row to attach, so the runtime never reached the element at
+  // all. Hosts are the largest family in the table (`ui:icon` needs `<svg>`,
+  // `ui:image` `<img>`, `ui:modal` `<dialog>`, every control its own tag), so this
+  // was the widest hole in the contract, not a corner of it.
+  const src = (rows: string): string => `<section ui:state="rows: ${rows}">
+  <ul ui:each="r in rows" ui:key="id"><li><span ui:icon name="x"></span></li></ul>
+</section>`;
+
+  const empty = src('[]');
+  const staticFindings = staticMsgs(empty);
+  assert.equal(staticFindings.length, 1, `ui check: ${JSON.stringify(staticFindings)}`);
+  assert.match(bare(staticFindings[0]!), /^ui:icon requires <svg>, found <span> — not applied$/);
+
+  // the divergence this closed: with no rows, the runtime used to say nothing
+  const runtime = (await runRuntime(empty)).map(bare);
+  assert.deepEqual(runtime, staticFindings.map(bare),
+    'the runtime and ui check must report the same finding, in the same words');
+
+  // ...and with rows it is one report, not one per item. The template is the
+  // source; the data is not. (Before this, three rows printed it three times and
+  // none printed it once.)
+  assert.equal((await runRuntime(src("[{ id: 1 }, { id: 2 }, { id: 3 }]"))).length, 1);
+});
+
 t('parity: a ui:tabs with nothing to wire is named, not rendered plausibly', async () => {
   // `ui:tabs` finds its tabs with `[role="tab"]`. With none, the class lands, no tab
   // is ever selected and every panel shows at once — a silent no-op, and the same

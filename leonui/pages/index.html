@@ -5,7 +5,8 @@
 <link rel="stylesheet" href="/src/ui.css">
 <style>
   /* app-level CSS: unlayered rules always win over the layered ui.base (integration contract) */
-  #override-win { color: rgb(255, 0, 0); }
+  /* an AA-passing red in both schemes: pure red is 3.8:1 on the light background */
+  #override-win { color: light-dark(#a5181a, #ff8a80); }
 </style>
 </head>
 <body ui:state="ver: '0.3.0'">

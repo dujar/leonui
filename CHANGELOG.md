@@ -75,7 +75,30 @@ with each other, so there is now a test that does exactly that on one source.
   One markup string goes to both halves and the findings are compared one for one, including
   the case where the halves *must* differ — the three findings that are runtime-only because
   no scanner can see them — so an intentional difference cannot quietly become an accidental
-  one. Suite: 105 → **149 tests across 16 files**.
+  one. Suite: 105 → **164 tests across 18 files**.
+- **`dismiss` — a verb for closing the overlay you are inside.** A popover can only be
+  *closed* from a button: `popovertargetaction="hide"` and `command="hide-popover"` apply to
+  `<button>` and to nothing else. So the most common popover there is — a mobile menu made of
+  `<a href="#section">` links — has no way to close itself when a destination is picked, and
+  stays open over the page the reader just asked for. `ui:fx="click: dismiss"` closes the
+  nearest open popover or `<dialog>` by walking outward, and names the miss when there is
+  none. It takes no argument on purpose: a selector would let you close an overlay other than
+  the one you are in, which is the same quiet wrong answer as `ui:key="row.id"`.
+- **`ui:popover` keeps every invoker's `aria-expanded` equal to the popover's real state.**
+  The platform opens and closes the popover but never writes the state back to the button, so
+  a screen reader was told "Open menu" whether the menu was open or shut. Invokers are looked
+  up on each sync, not captured once, because a popover and its button can attach in either
+  order. A popover with no invoker — one opened by script — is left alone entirely.
+- **Contrast is now measured, not asserted.** `tests/a11y.test.ts` reads the pixel actually
+  rendered behind every text node on every shipped page, in both colour schemes, and fails on
+  anything below AA. Nothing in the suite had ever looked at a rendered colour, which is why
+  four shipped combinations failed without anyone noticing (see Fixed). The measurement is
+  what took the work: the obvious ways to screenshot a tall page are both wrong, and both were
+  tried first — `captureBeyondViewport` resizes the visual viewport *for the capture*, so
+  every rect measured beforehand points at the wrong pixel (a stat span moved 1851 → 1827);
+  and clipping without it returns everything below the fold unpainted, which turns every
+  button into white-on-white at 1.05:1. The viewport is grown to the document instead, which
+  is a real viewport, so the layout is byte-identical before and after the shot.
 
 ### Fixed
 
@@ -167,15 +190,49 @@ with each other, so there is now a test that does exactly that on one source.
   the runtime adds `.ui-reveal-settled`, the rule stops matching and the page's transitions
   return. The duration is read from the stylesheet rather than hardcoded in JS, so the two
   cannot drift.
+- **Four shipped colour combinations failed WCAG AA, and nothing in the suite could see it.**
+  `--muted` measured 4.25:1 on the `.band-alt` tint and 4.40:1 on an inset card; the brand and
+  success badges 4.42:1; and `--warn` **3.38:1** — the worst of the four, and the one a
+  reviewer did not report. Dark mode passed throughout, which is why "it looks fine" was never
+  evidence. The badges were the accent mixed into *both* sides — `var(--brand)` text on
+  `color-mix(in srgb, var(--brand) 18%, transparent)` — the one combination that cannot pass,
+  since both sides are the same hue by construction; and because the tint was translucent the
+  same badge measured 4.42:1 on a card and 3.71:1 over the hero's gradient. The tint is now
+  mixed into `--card`, so it is opaque and the ratio stops depending on what is behind it, and
+  the text is 78% accent + `--ink`, which moves the accent toward the foreground in whichever
+  direction that means for the scheme. `tests/a11y.test.ts` pins the invariant as well as the
+  numbers: a badge that measures differently on a light band and a dark one is translucent
+  again.
+- **`pages/index.html`'s cascade-layer probe was the last failing text node in the package.**
+  The demo proves unlayered app CSS beats the layered `ui.base`, and it proved it with
+  `rgb(255, 0, 0)` — 3.8:1 on the light background. It now uses
+  `light-dark(#a5181a, #ff8a80)`: the override is the point of the demo, the specific red was
+  not, and an AA-passing red proves the same thing in both schemes.
+- **A wrong host inside a `ui:each` template was reported by `ui check` and by nothing else.**
+  The template walk covered the vocabulary and the companion requirements but not the host —
+  the tag an enhancer only works on — so `ui:icon` on a `<span>` inside a template produced a
+  checker finding and no runtime warning, and with an empty list it produced no warning at
+  all, because there was no row to attach. Hosts are the largest family in the vocabulary
+  (`ui:icon` needs `<svg>`, `ui:image` `<img>`, `ui:modal` `<dialog>`, every control its own
+  tag), so this was the widest hole in the contract rather than a corner of it. The template
+  now runs the same three checks `attachEnhancers` does, once per markup site — which also
+  stops a 50-row list from printing one mistake 50 times, as it did until now.
+- **A verb declared in the vocabulary but never implemented was a silent no-op.** `fx.ts`
+  dispatched through an if-chain, which cannot be introspected, so adding a name to `VERBS`
+  and forgetting the handler produced markup that parsed, passed `ui check` and appeared in
+  the generated skill table. Dispatch is a `VERB_HANDLERS` table pinned to `VERB_NAMES` in
+  both directions by `vocab.test.ts`, and an unimplemented name warns when the event fires.
+  The same test no longer hardcodes the catalog's length, which had gone stale the moment
+  `dismiss` was added.
 
 ### Changed
 
-- Runtime 27.8 → **32.3 KB minified / 10.4 → 12.0 KB gzipped**; the stylesheet 9.9 →
-  **12.5 KB / 2.7 → 3.6 KB**. `benchmark.md` regenerated from one `bun run bench`, so every
+- Runtime 27.8 → **33.5 KB minified / 10.4 → 12.5 KB gzipped**; the stylesheet 9.9 →
+  **13.7 KB / 2.7 → 4.1 KB**. `benchmark.md` regenerated from one `bun run bench`, so every
   number in the repo now comes from the same measurement, and its honest-reading section
-  attributes the bytes to the three passes separately — the vocabulary pass ~4.6 KB, the
-  contract-and-motion pass a further ~3.2 KB, the judge pass a further ~1.3 KB — instead of
-  pinning the whole delta on the first one, which had made the sentence contradict its own
+  attributes the bytes to the four passes separately — the vocabulary pass ~4.6 KB, the
+  contract-and-motion pass a further ~3.2 KB, the two judge passes a further ~2.5 KB — instead
+  of pinning the whole delta on the first one, which had made the sentence contradict its own
   computed parenthetical. The timing table moved with the rerun, as it always does; the mount
   column is the single noisy sample the methodology says it is.
 - Documentation: `README.md` and `AGENTS.md` document the companion contract, the motion
