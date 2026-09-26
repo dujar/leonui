@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>badge fixture — every variant, and muted text on every surface</title>
+<link rel="stylesheet" href="/src/ui.css">
+<style>
+  body { padding: 1.5rem; max-width: none; }
+  /* the worst surface any shipped token sits on: an `--ink` tint over `--bg`,
+     which is what `.band-alt` is on the landing page. The tint is darker than
+     `--card`, so it is the surface a muted token has to clear, not white. */
+  .tinted { background: color-mix(in srgb, var(--ink) 4%, transparent); padding: 1rem; }
+  .inset { padding: 1rem; }
+</style>
+</head>
+<body>
+
+<span id="b-plain" class="ui-badge">plain</span>
+<span id="b-brand" class="ui-badge ui-b-brand">brand</span>
+<span id="b-danger" class="ui-badge ui-b-danger">danger</span>
+<span id="b-warn" class="ui-badge ui-b-warn">warn</span>
+<span id="b-success" class="ui-badge ui-b-success">success</span>
+
+<p id="muted-bg" class="ui-t-muted">muted on the page background</p>
+
+<div class="ui-card">
+  <p id="muted-card" class="ui-t-muted">muted on a card</p>
+</div>
+
+<div class="ui-card ui-card-inset">
+  <p id="muted-inset" class="ui-t-muted">muted on an inset card</p>
+</div>
+
+<div class="tinted">
+  <p id="muted-tinted" class="ui-t-muted">muted on a tinted band</p>
+</div>
+
+<div class="tinted">
+  <p id="muted-tinted" class="ui-t-muted">muted on a tinted band</p>
+</div>
+
+<!-- The badge's own background is opaque, so its ratio must not move when the
+     surface under it does. This is the assertion that keeps it that way: the
+     shipped version was translucent, and measured 4.4:1 on a card but 3.7:1 over
+     the hero's brand-tinted gradient — same badge, different answer. -->
+<div id="dark-band" style="background: #1c1e21; padding: 1rem">
+  <span id="b-brand-dark" class="ui-badge ui-b-brand">brand on a dark band</span>
+</div>
+
+</body>
+</html>

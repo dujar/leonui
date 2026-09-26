@@ -14,7 +14,12 @@
     --bg: light-dark(#faf9f6, #14161a);
     --card: light-dark(#ffffff, #1e2126);
     --ink: light-dark(#1c1e21, #e8eaed);
-    --muted: light-dark(#6b7280, #9aa0a6);
+    /* Dark enough to clear 4.5:1 on the *lightest* surface it is used on, which
+       is not `--card` but `.band-alt` (an `--ink` tint over `--bg`, ~#f1f0ed).
+       At the old #6b7280 the muted text on an alt band measured 4.25:1 — a
+       failure that only shows up on the tinted bands, so it survives review on
+       a plain white page. */
+    --muted: light-dark(#626b78, #9aa0a6);
     --line: light-dark(#e5e2da, #2a2e35);
     --danger: light-dark(#b3261e, #f2b8b5);
     --warn: light-dark(#9a6b00, #f2d06b);
@@ -61,16 +66,28 @@
   .ui-t-muted { color: var(--muted); font-size: var(--ui-text-2); }
   .ui-t-strong { font-weight: 600; }
   .ui-t-code { font-family: var(--mono); font-size: var(--ui-text-2); background: color-mix(in srgb, var(--ink) 7%, transparent); border-radius: var(--r-sm); padding: 0 var(--ui-gap-2); }
+  /* Both halves of a badge are mixed into tokens rather than left translucent.
+     A translucent tint takes its contrast from whatever is behind it, so the
+     same brand badge measures 4.4:1 on a plain card and 3.7:1 over the hero's
+     brand-tinted gradient — a ratio that depends on the page cannot be tested,
+     and that one was wrong on the page that mattered. Mixed into `--card` the
+     ratio is a property of the badge alone.
+
+     The text is the accent moved TOWARD the foreground, not the accent itself:
+     `var(--brand)` text on a `brand`-tinted background is the one combination
+     that cannot pass, because the two colours are the same hue by construction.
+     Moving the accent 22% toward `--ink` darkens it in light mode and lightens
+     it in dark mode, from a single rule. */
   .ui-badge {
     display: inline-flex; align-items: center; gap: var(--ui-gap-2);
     font-size: var(--ui-text-1); font-weight: 600; line-height: 1;
     padding: var(--ui-gap-2) var(--ui-gap-3); border-radius: 999px;
-    background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--ink);
+    background: color-mix(in srgb, var(--ink) 8%, var(--card)); color: var(--ink);
   }
-  .ui-b-brand { background: color-mix(in srgb, var(--brand) 18%, transparent); color: var(--brand); }
-  .ui-b-danger { background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger); }
-  .ui-b-warn { background: color-mix(in srgb, var(--warn) 22%, transparent); color: var(--warn); }
-  .ui-b-success { background: color-mix(in srgb, var(--success) 18%, transparent); color: var(--success); }
+  .ui-b-brand { background: color-mix(in srgb, var(--brand) 12%, var(--card)); color: color-mix(in srgb, var(--brand) 78%, var(--ink)); }
+  .ui-b-danger { background: color-mix(in srgb, var(--danger) 12%, var(--card)); color: color-mix(in srgb, var(--danger) 78%, var(--ink)); }
+  .ui-b-warn { background: color-mix(in srgb, var(--warn) 12%, var(--card)); color: color-mix(in srgb, var(--warn) 78%, var(--ink)); }
+  .ui-b-success { background: color-mix(in srgb, var(--success) 12%, var(--card)); color: color-mix(in srgb, var(--success) 78%, var(--ink)); }
   .ui-icon { width: 1.1em; height: 1.1em; display: inline-block; vertical-align: -.18em; }
   .ui-img { width: 100%; object-fit: cover; border-radius: var(--r); background: color-mix(in srgb, var(--ink) 6%, transparent); display: block; }
   .ui-img-error::after {

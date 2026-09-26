@@ -29,7 +29,8 @@ export const isAttrAspect = (aspect: string): boolean => /^attr:[\w-]+$/.test(as
 
 /* ---------- effect verbs + response gates (rule 6) ---------- */
 export const VERBS = [
-  'set', 'toggle', 'call', 'toast', 'nav', 'refetch', 'prompt', 'confirm', 'focus', 'reset', 'delay',
+  'set', 'toggle', 'call', 'toast', 'nav', 'refetch', 'prompt', 'confirm', 'focus', 'reset',
+  'dismiss', 'delay',
 ] as const;
 /** response gates read the last call's outcome; they are not verbs (naming.md §6) */
 export const GATES = ['onfail', 'onsuccess'] as const;
@@ -126,7 +127,7 @@ export const ENHANCER_SPECS: Record<string, EnhancerSpec> = {
       placement: { values: ['bottom-start', 'bottom-end', 'top-start', 'top-end'] },
     },
     requiresAttr: 'popover',
-    note: 'opened by a `popovertarget` invoker button',
+    note: 'opened by a `popovertarget` invoker button; the invoker\'s `aria-expanded` is kept in sync for you',
   },
   'ui:modal': { hosts: ['dialog'], note: 'open with `command="show-modal" commandfor="id"` buttons — zero JS' },
   'ui:tabs': { note: 'needs `role=tab/tablist/tabpanel` markup — arrow keys + Home/End included' },

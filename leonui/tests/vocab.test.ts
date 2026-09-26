@@ -18,9 +18,10 @@ import { app } from '../serve/app.ts';
 import { Browser, Page } from './harness.ts';
 import {
   ENHANCER_NAMES, ENHANCER_SPECS, attrRejects, enhancerAttrProblems, enhancerProblems, enhancerRejects,
-  rejectedProps, requirementProblems, suggest, ICON_NAMES, VERB_NAMES, ASPECTS, remoteDecl,
+  rejectedProps, requirementProblems, suggest, ICON_NAMES, VERB_NAMES, VERBS, GATES, ASPECTS, remoteDecl,
 } from '../src/vocab.ts';
 import { ENHANCERS } from '../src/enhancers.ts';
+import { VERB_HANDLERS } from '../src/fx.ts';
 
 /* ================= pure: the table ================= */
 
@@ -165,9 +166,29 @@ test('vocab: every declared enhancer is implemented, and every implementation de
 });
 
 test('vocab: the verb table is the runtime catalog', () => {
-  assert.equal(VERB_NAMES.length, 13, '11 verbs + 2 response gates');
+  // Composed, not counted. A hardcoded length here is a second place the catalog
+  // lives, and it went stale the moment `dismiss` was added — which is a nuisance
+  // in a test and a silent no-op in the runtime. The contract is the composition.
+  assert.deepEqual([...VERB_NAMES], [...VERBS, ...GATES]);
+  assert.ok(VERBS.length > 0 && GATES.length > 0);
   assert.deepEqual([...VERB_NAMES].slice(0, 3), ['set', 'toggle', 'call']);
   assert.deepEqual([...ASPECTS], ['text', 'class', 'hidden', 'disabled', 'checked', 'open']);
+});
+
+test('vocab: every catalog verb has a handler, and every handler is a catalog verb', () => {
+  // The pin the enhancer tables have had all along and the verbs did not. `fx.ts`
+  // used to dispatch through an if-chain, which cannot be introspected — so
+  // declaring a verb in `vocab.ts` and forgetting to implement it produced markup
+  // that parsed, passed `ui check`, appeared in the generated skill table, and did
+  // nothing when the event fired. Both directions are checked: a handler for a
+  // name that is not in the catalog means the catalog is lying about its size.
+  const handled = Object.keys(VERB_HANDLERS);
+  const unimplemented = VERB_NAMES.filter(n => !handled.includes(n));
+  assert.deepEqual(unimplemented, [],
+    `declared in vocab.ts with no implementation in VERB_HANDLERS: ${unimplemented.join(', ')}`);
+  const undeclared = handled.filter(n => !VERB_NAMES.includes(n));
+  assert.deepEqual(undeclared, [],
+    `implemented in VERB_HANDLERS but absent from the catalog: ${undeclared.join(', ')}`);
 });
 
 test('vocab: a bare GET is a mistake, not a literal string', () => {

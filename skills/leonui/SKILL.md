@@ -23,7 +23,7 @@ Plus: `ui:computed="name: expr"` (derived signal) and `ui:transition` (wrap the 
 ## Effect verbs (closed catalog — no arbitrary JS)
 
 <!-- BEGIN GENERATED: verbs -->
-Verbs (11): `set` `toggle` `call` `toast` `nav` `refetch` `prompt` `confirm` `focus` `reset` `delay`.
+Verbs (12): `set` `toggle` `call` `toast` `nav` `refetch` `prompt` `confirm` `focus` `reset` `dismiss` `delay`.
 Response gates (2, not verbs): `onfail` `onsuccess`.
 <!-- END GENERATED: verbs -->
 
@@ -37,11 +37,13 @@ onsuccess toast 'msg'    (payload runs only if the last call succeeded — never
 toast expr               nav '#screen-id'        refetch cellName      # nav needs [data-screen] sections
 prompt 'question' into path                      confirm 'question'   (guard: aborts remaining verbs if declined)
 focus '#sel'             reset '#form-sel'       delay ms
+dismiss                                          (closes the popover or <dialog> this element is inside)
 ```
 
 Invariants (the runtime enforces these):
 - Local (non-server) lists need unique ids: keep a `nextId` counter in state (`set notes = [ { id: nextId, … }, ...notes ]; set nextId = nextId + 1`) — do not derive ids from list length (collides after deletions).
 - `reset '#form'` calls `form.reset()` and re-syncs `ui:model` paths for single-value controls only — checkbox/radio/file/`multiple` selects are skipped, and `ui:bind-checked` signals are never restored. Pair it with explicit `set` verbs for booleans.
+- `dismiss` closes the nearest open popover or `<dialog>` the element sits inside, and takes no argument — a selector would let you close an overlay other than the one you are in. It exists because a popover can only be closed from a `<button>`: `popovertargetaction="hide"` and `command="hide-popover"` apply to nothing else, so a mobile menu built from `<a href="#section">` links has no other way to close itself. On an element that is not inside an open overlay it warns and does nothing.
 - A signal set to an unchanged value does not notify. If a control's initial DOM state differs from its signal default, bind the DOM default too: put `checked`/`selected` attributes on the control that match the declared defaults.
 - `with {…}` bodies and `{path}` URL interpolations evaluate at **event time, before** optimistic mutations — write `call PATCH /api/t/{task.id} with { done: !task.done } optimistic: set task.done = !task.done`.
 - Optimistic rollback restores pre-call values even if the set removed the row from the DOM.
@@ -84,7 +86,7 @@ The host column is a contract, not a hint: `ui:icon` reads a bare `name` prop, s
 | `ui:textarea` | — | **`<textarea>` only**; control class |
 | `ui:select` | — | **`<select>` only**; control class |
 | `ui:checkbox` | — | **`<input>` only**; checkable control |
-| `ui:popover` | `anchor="#btn"` (a CSS selector), `placement=bottom-start\|bottom-end\|top-start\|top-end` | any element; also needs the native `popover` attribute; opened by a `popovertarget` invoker button |
+| `ui:popover` | `anchor="#btn"` (a CSS selector), `placement=bottom-start\|bottom-end\|top-start\|top-end` | any element; also needs the native `popover` attribute; opened by a `popovertarget` invoker button; the invoker's `aria-expanded` is kept in sync for you |
 | `ui:modal` | — | **`<dialog>` only**; open with `command="show-modal" commandfor="id"` buttons — zero JS |
 | `ui:tabs` | — | any element; needs `role=tab/tablist/tabpanel` markup — arrow keys + Home/End included |
 | `ui:reveal` | `from=fade\|up\|down\|left\|right\|zoom`, `trigger=scroll\|load`, `stagger=0..8` | any element; scroll-driven entrance animation; `trigger="load"` animates on load instead |

@@ -9,6 +9,26 @@ import { ENHANCER_SPECS, ICONS, enhancerAttrProblems, enhancerProblems, enhancer
 
 let anchorSeq = 0;
 
+/** Keep every invoker of a popover's `aria-expanded` equal to the popover's real
+ * state. The invokers are looked up on each sync rather than captured once: a
+ * popover and its button can be attached in either order, and one of them may
+ * arrive from a `ui:use` template after the other has already run.
+ *
+ * A popover with no invoker is left completely alone — `ui:popover` is also used
+ * for popovers opened by script, and those have no button to annotate. */
+function syncPopoverExpanded(el: Element): void {
+  const id = el.id;
+  if (!id) return;
+  const invokers = (): Element[] =>
+    [...document.querySelectorAll(`[popovertarget="${CSS.escape(id)}"], [commandfor="${CSS.escape(id)}"]`)];
+  const sync = (): void => {
+    const open = el.matches(':popover-open');
+    for (const b of invokers()) b.setAttribute('aria-expanded', String(open));
+  };
+  sync();
+  el.addEventListener('toggle', sync);
+}
+
 export function injectSprite(): void {
   if (document.getElementById('ui-icons')) return;
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -132,6 +152,12 @@ export const ENHANCERS: Record<string, Enhancer> = {
     }
     const pl = el.getAttribute('placement');
     if (pl) el.setAttribute('data-placement', pl);
+    // The platform opens and closes the popover, but it never writes that state
+    // back to the invoker, so a screen reader hears "Open menu" whether the menu
+    // is open or shut. `aria-expanded` is the invoker's job and there is no markup
+    // that expresses it — the state lives in the popover — so the enhancer that
+    // already knows both ends of the relationship keeps them in step.
+    syncPopoverExpanded(el);
   },
   'ui:modal': el => el.classList.add('ui-dialog'),
   'ui:reveal': (el, rowIndex) => {

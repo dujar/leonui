@@ -48,6 +48,7 @@
     "confirm",
     "focus",
     "reset",
+    "dismiss",
     "delay"
   ],
   "gates": [
@@ -245,7 +246,7 @@
         }
       },
       "requiresAttr": "popover",
-      "note": "opened by a `popovertarget` invoker button"
+      "note": "opened by a `popovertarget` invoker button; the invoker's `aria-expanded` is kept in sync for you"
     },
     "ui:modal": {
       "hosts": [
