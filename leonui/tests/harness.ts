@@ -7,21 +7,48 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 /** Discover any locally installed Playwright Chromium (any build number), so
- * CI (playwright install) and developer machines both work. UI_CHROME_BIN wins. */
+ * CI (playwright install) and developer machines both work. UI_CHROME_BIN wins.
+ *
+ * Playwright's cache is per-platform: the same build directory holds
+ * `chrome-linux/chrome`, `chrome-mac/Chromium.app/Contents/MacOS/Chromium`, or a
+ * `chrome-headless-shell-<arch>/` shell. This only knew the Linux layout, so on a
+ * Mac every test died on "no chromium binary found" and the fix was to read the
+ * source and hand-set UI_CHROME_BIN — which is a poor first experience for the
+ * one command that proves the framework did what you asked. */
 function discoverChrome(): string[] {
   const out: string[] = [];
   if (process.env.UI_CHROME_BIN) out.push(process.env.UI_CHROME_BIN);
+  const mac = process.arch === 'arm64' ? 'mac-arm64' : 'mac-x64';
   const cache = join(process.env.HOME ?? '', '.cache', 'ms-playwright');
   try {
     const builds = readdirSync(cache)
       .filter(d => d.startsWith('chromium_headless_shell-') || d.startsWith('chromium-'))
       .sort((a, b) => Number(b.split('-')[1]) - Number(a.split('-')[1]));
     for (const b of builds) {
-      if (b.startsWith('chromium_headless_shell-'))
-        out.push(join(cache, b, 'chrome-headless-shell-linux64', 'chrome-headless-shell'));
-      else out.push(join(cache, b, 'chrome-linux', 'chrome'));
+      const dir = join(cache, b);
+      if (b.startsWith('chromium_headless_shell-')) {
+        out.push(
+          join(dir, `chrome-headless-shell-${mac}`, 'chrome-headless-shell'),
+          join(dir, 'chrome-headless-shell-linux64', 'chrome-headless-shell'),
+        );
+      } else {
+        out.push(
+          join(dir, `chrome-${mac}`, 'Chromium.app', 'Contents', 'MacOS', 'Chromium'),
+          join(dir, 'chrome-mac', 'Chromium.app', 'Contents', 'MacOS', 'Chromium'),
+          join(dir, 'chrome-linux', 'chrome'),
+        );
+      }
     }
   } catch { /* no cache dir */ }
+  // last resort: a browser this machine already has, so a checkout with no
+  // Playwright cache is still verifiable
+  for (const p of [
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+  ]) out.push(p);
   return out;
 }
 const CHROME_CANDIDATES = discoverChrome();
@@ -43,12 +70,15 @@ export class Browser {
 
   static async launch(): Promise<Browser> {
     const bin = CHROME_CANDIDATES.find(b => existsSync(b));
-    if (!bin) throw new Error('no chromium binary found; set UI_CHROME_BIN');
+    if (!bin) throw new Error('no chromium binary found; set UI_CHROME_BIN to a Chrome or Chromium executable');
     const port = 9800 + Math.floor(Math.random() * 500);
     const userDataDir = mkdtempSync(join(tmpdir(), 'leonui-e2e-'));
+    // chrome-headless-shell IS headless and rejects "--headless + remote debugging"
+    // outright; a full Chrome/Chromium build has to be told, and only the new
+    // headless mode accepts a debugging port.
+    const headlessShell = /headless[-_]shell/i.test(bin);
     const proc = spawn(bin, [
-      // NB: no --headless flag — chrome-headless-shell is headless by default and
-      // rejects "--headless + remote debugging" outright
+      ...(headlessShell ? [] : ['--headless=new']),
       '--no-sandbox', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
       `--remote-debugging-port=${port}`, `--user-data-dir=${userDataDir}`, 'about:blank',
     ], { stdio: 'ignore' });
@@ -147,8 +177,27 @@ export class Page {
     }
   }
 
+  /** Every emulated media feature set so far. `Emulation.setEmulatedMedia` replaces
+   * the whole `features` array on each call, so asking for reduced motion after
+   * asking for a colour scheme would otherwise silently drop the colour scheme. */
+  private media = new Map<string, string>();
+
+  private async emulate(name: string, value: string): Promise<void> {
+    this.media.set(name, value);
+    await this.send('Emulation.setEmulatedMedia', {
+      features: [...this.media].map(([n, v]) => ({ name: n, value: v })),
+    });
+  }
+
   async colorScheme(scheme: 'light' | 'dark'): Promise<void> {
-    await this.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: scheme }] });
+    await this.emulate('prefers-color-scheme', scheme);
+  }
+
+  /** `prefers-reduced-motion` — so the reveal's reduced-motion branch is tested
+   * rather than assumed. It is the branch that decides whether a reader who asked
+   * for less motion gets the page at all. */
+  async reducedMotion(value: 'reduce' | 'no-preference'): Promise<void> {
+    await this.emulate('prefers-reduced-motion', value);
   }
 
   async screenshot(name: string): Promise<string> {

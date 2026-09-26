@@ -3,11 +3,11 @@
 **HTML is the schema; the browser is the framework.**
 
 leonui is a typed reactive UI runtime for plain HTML. You author regular markup plus a small
-attribute grammar — five families, fewer than 30 `ui:*` names — and a ~27.8 KB runtime
-(10.4 KB gzipped) provides signals, fine-grained binds, keyed lists, a closed catalog of
-effect verbs, and validation that turns every malformed attribute into a named warning,
-compiled onto modern browser platform APIs. The stylesheet (`ui.css`) is a
-separate, optional file: 9.9 KB minified, 2.7 KB gzipped.
+attribute grammar — five families, fewer than 30 `ui:*` names — and a ~33.5 KB runtime
+(12.5 KB gzipped) provides signals, fine-grained binds, keyed lists, a closed catalog of
+effect verbs, entrance animation, and validation that turns every malformed attribute into a
+named warning, compiled onto modern browser platform APIs. The stylesheet (`ui.css`) is a
+separate, optional file: 13.7 KB minified, 4.1 KB gzipped.
 
 **No build step. No components. No vdom. No eval. No arbitrary JavaScript in markup.**
 The expression language is a whitelist AST, every runtime warning is collected in
@@ -40,6 +40,7 @@ verifier an agent can run before anything renders.
 - [Components and reuse](#components-and-reuse)
 - [Structural enhancers and theming](#structural-enhancers-and-theming)
 - [Overlays and platform APIs](#overlays-and-platform-apis)
+- [Motion and animation](#motion-and-animation)
 - [Debugging](#debugging)
 - [Verifying a page](#verifying-a-page)
 - [Agent-first distribution](#agent-first-distribution)
@@ -59,15 +60,15 @@ step and no room for hallucinated syntax.
 
 - **The grammar is the product.** Five attribute families cover declare / react / repeat /
   act / compose. The whole vocabulary is designed to fit in an agent's context window —
-  [`naming.md`](naming.md) caps the grammar spec at a ~2,000-token budget and every new
-  name must state its token cost.
+  [`naming.md`](naming.md) caps the generated grammar table at a ~2,000-token budget (it is
+  ~510 today) and every new name must state its token cost.
 - **Closed, not open.** Expressions are a whitelist (never `eval`), effect verbs are a
   closed catalog, unknown verbs and attributes are *named* warnings instead of silent
   no-ops. A page either behaves as written or tells you exactly which attribute lied.
 - **The browser does the work.** Overlays use platform popovers and invoker commands,
-  dialogs are plain `<dialog>`, transitions use view transitions, dark mode is
-  `light-dark()` — the runtime compiles declarative attributes onto verified platform
-  APIs instead of reimplementing them.
+  dialogs are plain `<dialog>`, transitions use view transitions, entrance animation uses
+  `IntersectionObserver` + CSS, dark mode is `light-dark()` — the runtime compiles
+  declarative attributes onto verified platform APIs instead of reimplementing them.
 - **Typed inside, plain outside.** The runtime is strict TypeScript with a discriminated
   AST and a typed signals core; the authoring surface stays plain HTML.
 
@@ -144,6 +145,10 @@ Notes that matter in practice:
 - **Values** in `ui:state` are strings, numbers, booleans, JSON (single quotes OK), or
   `GET /url` — a *remote cell* that fetches on attach and exposes
   `{status: 'loading'|'ok'|'error', data}`.
+- **Some names need a partner.** `ui:key` and `ui:sortable` need `ui:each` on the same
+  element, `ui:transition` needs `ui:fx`, and `ui:model` needs a real form control. The
+  runtime warns and skips instead of being silently inert, and `ui check` reports the same
+  line before anything renders.
 - **Re-attaching a root is a no-op.** The runtime records what it has already wired, so
   importing the bundle from both a page script and a component script attaches once — it
   does not stack listeners or reset state.
@@ -215,6 +220,10 @@ values containing apostrophes (`{ note: "it's fine" }`) parse correctly.
 Add `ui:sortable` to the template element and the list becomes drag-to-reorderable —
 live preview while dragging, and the drop rewrites the array immutably. Empty states:
 gate a notice with `ui:bind-hidden="todos.length != 0"`.
+
+**`ui:key` names a property, not a path.** Its value is read as `item[ui:key]`, so
+`ui:key="id"` is right and `ui:key="row.id"` quietly keys every row by index. The runtime
+warns and `ui check` reports it.
 
 **Rows are released, not just removed.** When an item leaves the list, the runtime
 disposes the subscriptions that row's binds created, so a page-level signal does not
@@ -298,6 +307,7 @@ name warns with a suggestion. Nothing about an enhancer is silent.
 | `ui:input` / `ui:textarea` / `ui:select` / `ui:checkbox` | — | **`<input>` / `<textarea>` / `<select>` / `<input>` only** |
 | `ui:field` | — | any element |
 | `ui:tabs` | — | any element; needs `role=tablist/tab/tabpanel` markup with arrow-key **and Home/End** navigation |
+| `ui:reveal` | `from=fade\|up\|down\|left\|right\|zoom`, `trigger=scroll\|load`, `stagger=0..8` | any element; entrance animation — see [Motion](#motion-and-animation) |
 
 Theming is CSS custom properties — override `--brand`, `--bg`, `--ink`, `--muted`,
 `--line`, `--danger`, `--r` (radius), `--ui-gap-*`, `--ui-text-*` in a `theme.css`.
@@ -316,12 +326,66 @@ leonui compiles onto the platform rather than around it:
 - **Transitions** — `ui:transition` wraps a handler in a view transition.
 - **Tabs** — semantic `role=` markup; keyboard support comes from the shipped wiring.
 
+## Motion and animation
+
+`ui:reveal` is the entrance animation, and one attribute is the whole API — no JavaScript,
+no keyframes to write:
+
+```html
+<section ui:reveal from="up">…</section>            <!-- animates in on scroll -->
+<div ui:reveal trigger="load" stagger="2">…</div>   <!-- on load, 160 ms late -->
+<li ui:each="row in rows" ui:reveal stagger="1">…</li>
+```
+
+| Prop | Values | Default |
+|---|---|---|
+| `from` | `fade` `up` `down` `left` `right` `zoom` | `up` |
+| `trigger` | `scroll` `load` | `scroll` |
+| `stagger` | `0..8` (80 ms steps) | `0` |
+
+`trigger="scroll"` reveals once when the element enters the viewport (and does not re-arm
+when you scroll back); `trigger="load"` animates immediately. Combine with `ui:each` +
+`stagger` for a list that cascades in — inside a list the step is multiplied by the row's
+**index**, so one attribute on the template is enough (`stagger="1"` over three rows is
+0/80/160 ms); outside a list the element's own step is all there is.
+
+Four guarantees matter more than the animation itself, and all four are asserted by tests.
+The first two are ways an entrance animation destroys a page rather than decorating it; the
+last two are ways it breaks one quietly:
+
+- **Nothing is hidden unless the runtime is running.** The armed state is scoped to
+  `.ui-reveal-ready` on `<html>`, a class only the runtime sets — so a page whose bundle
+  404s, whose CDN is blocked, or where JS is off renders **fully visible**. Never write CSS
+  that hides `[ui:reveal]` directly.
+- **Reduced motion is honoured.** The entire motion block lives inside
+  `@media (prefers-reduced-motion: no-preference)`; under `prefers-reduced-motion: reduce`
+  the elements are simply present, immediately.
+- **Anything already on screen when it arms is revealed at once.** The scroll trigger's
+  `-12%` bottom margin is a band an element has to be able to *leave*, and a `position:
+  fixed` bar never moves relative to the viewport — it starts inside the band and stays
+  there. Intersection alone would leave it armed and invisible for the life of the page,
+  with the runtime running.
+- **The element gets its own transitions back.** `.ui-reveal-in` carries a `transition`
+  shorthand, and a shorthand resets *every* transition property on the element, so a `.cta`
+  with `transition: background .2s` would stop transitioning its background the moment it
+  revealed. The runtime adds `.ui-reveal-settled` when the motion ends, the rule stops
+  matching, and the page's transitions return.
+
+If you animate something yourself, copy those rules — and note the one the implementation
+had to learn: declare the `transition` on the **revealed** state, not the armed one, or
+arming animates too and every element slides *out* on load.
+
+`tests/motion.test.ts` asserts a mid-flight opacity strictly between 0 and 1 (so the
+animation must actually interpolate, not merely gain a class), that arming is instant, and
+that both guarantees hold.
+
 ## Debugging
 
 - Every runtime warning lands in **`window.__ui.warns`** — unknown verbs, unknown `ui:*`
-  attributes, out-of-vocabulary prop values, wrong enhancer hosts and misspelled prop
-  names are all warned *by name*, so typos surface instead of silently doing nothing.
-  Duplicate `ui:each` keys warn there too.
+  attributes, out-of-vocabulary prop values, wrong enhancer hosts, misspelled prop names,
+  a declared-but-unimplemented enhancer, a companion attribute with no partner
+  (`ui:key` with no `ui:each`) and `ui:model` on a non-control are all warned *by name*, so
+  typos surface instead of silently doing nothing. Duplicate `ui:each` keys warn there too.
 - Failures are isolated per element during attach: one malformed attribute cannot break
   the page.
 - The debug hook `window.__ui` also exposes the verb catalog (`__ui.verbs`), the
@@ -333,7 +397,12 @@ leonui compiles onto the platform rather than around it:
 
 The runtime warns in a console nobody is watching, and only about elements that actually
 attached. `ui check` reads the markup instead — same findings, no browser, no dev server,
-`file:line:column`, and a non-zero exit so it works as a gate:
+`file:line:column`, and an exit status that tells the three outcomes apart: `0` nothing to
+report, `1` an error was found, `2` a usage error. A usage error is anything that would
+otherwise make a gate pass without verifying anything — an unknown option, an empty path, a
+path that does not exist or is not HTML, or a scan that found no `.html` files at all,
+because a gate that goes green because it found no files goes green on the day the glob
+breaks:
 
 ```bash
 bunx leonui check                 # every *.html under the cwd
@@ -344,8 +413,20 @@ bunx leonui check page.html --json
 It reports unknown `ui:*` names (with a `did you mean`), unknown or malformed verbs and bad
 verb arguments, prop values outside their closed set, enhancers on the wrong host,
 misspelled prop names, expressions that fail to parse or call a non-whitelisted function,
-malformed `ui:state`/`ui:computed`/`ui:each`/`ui:model`/`ui:key`, and duplicate attributes
-(HTML silently drops the later one).
+malformed `ui:state`/`ui:computed`/`ui:each`/`ui:model`/`ui:key`, a present-but-empty
+`ui:key` (which reads nothing from the item and silently keys by index), duplicate
+attributes (HTML silently drops the later one), a companion attribute with no partner
+(`ui:key` without `ui:each`, `ui:transition` without `ui:fx`, `ui:model` on a non-control),
+and `ui:use` without a `#id`. `--json` emits
+`{ files, errors, warnings, suppressed, findings }` — the counts describe the whole scan and
+`suppressed` is how many findings `--quiet` kept out of `findings`, so the payload never
+reports a number its own list contradicts.
+
+Three findings are **runtime-only**, because no scanner that reads tags can make them: a
+`ui:tabs` with no `[role="tab"]` inside it (a descendant selector), `ui:state`/`ui:computed`/
+`ui:each`/`ui:use` written inside a `ui:each` template (a row runs the bind, enhancer and
+effect passes only), and a `ui:key` naming a property no item has (nothing static knows the
+shape of your data). Load the page and read `window.__ui.warns` for those.
 
 It is honest about its limits: nested path segments (`task.tittle` is not statically
 decidable), cross-file scope from `ui:use`, whether a selector matches, and anything
@@ -362,17 +443,21 @@ The framework's primary authors are coding agents, so the agent contract ships *
 package*:
 
 - [`skill/SKILL.md`](skill/SKILL.md) — the complete authoring grammar: attribute families,
-  verb catalog, expression whitelist, enhancer variants, gotchas, and the dev-server mock
-  API. It is in the npm `files` list — installing `leonui` installs the skill.
+  verb catalog, expression whitelist, enhancer variants, motion, gotchas, and the
+  dev-server mock API. It is in the npm `files` list — installing `leonui` installs the
+  skill.
 - In this repo, the agent-agnostic discovery copy lives at
   [`skills/leonui/SKILL.md`](../skills/leonui/SKILL.md) at the repo root, where any tool
   can find it. Install it into your agent by copying it to its skills directory (e.g.
   `.claude/skills/leonui/SKILL.md`), or point agents at the root
   [`AGENTS.md`](../AGENTS.md), which routes them to the skill before they can reach for
   React.
-- `tests/skill.test.ts` asserts the repo-root copy and the packaged copy never drift, and
-  that every `ui:*` name in `src/` is documented in the skill — the vocabulary table is
-  enforced, not aspirational.
+- **The grammar table inside the skill is generated** from `src/vocab.ts` by
+  `bun run grammar` — one source, three readers: the runtime, `ui check`, and the authoring
+  agent. `tests/skill.test.ts` asserts the repo-root copy and the packaged copy never
+  drift and that every `ui:*` name in `src/` is documented, and `bun run grammar:check`
+  fails if any of the four rendered files is stale. A hand-copied table was free to drift
+  from what the runtime enforces; a generated one is not.
 
 ## Performance
 
@@ -382,19 +467,22 @@ CDP. **`benchmark.md` is the only place measured numbers live**, because every r
 them; this section deliberately summarises rather than restates.
 
 The one figure that is architectural rather than timing noise: the complete leonui runtime
-minifies to **27.8 KB (10.4 KB gzipped)**, and the optional stylesheet adds 9.9 KB
-(2.7 KB gzipped) — less, together, than the smallest runtime it is compared against. The
-vocabulary pass that made malformed markup a named warning instead of a silent no-op cost
-~4.6 KB minified of that; the same table is what `ui check` reads, so the two can never
-disagree.
+minifies to **33.5 KB (12.5 KB gzipped)**, and the optional stylesheet adds 13.7 KB
+(4.1 KB gzipped) — 47.3 KB / 16.6 KB together, still less than any single runtime it is
+compared against. Four passes paid for correctness rather than features: the vocabulary pass
+that turned malformed markup into a named warning cost ~4.6 KB minified, the
+companion-attribute contract plus `ui:reveal` cost a further ~3.2 KB, and the two judge passes
+that made the runtime and `ui check` agree about an empty list and about a wrong host inside a
+template cost a further ~2.5 KB. All four
+are read from the same table `ui check` uses, so the two can never disagree.
 
 The benchmark's own honest reading, which this README endorses rather than edits around:
 
 - `update` is **saturated** — all four runtimes commit within a frame, so the op ranks
   nothing. So are `create`, `replace`, and (usually) `remove`.
 - Sub-10 ms gaps are machine noise; reruns flip tight rankings.
-- The `mount` column is a **single sample**, not a median, and has moved 34 → 66 → 47 ms
-  for byte-identical leonui builds. It is not a ranking.
+- The `mount` column is a **single sample**, not a median, and has been observed anywhere
+  between ~23 and ~66 ms for byte-identical leonui builds. It is not a ranking.
 - The compared frameworks do more than leonui does (no scheduler, no suspense, no
   transition system). Bundle size is the honest axis.
 
@@ -410,11 +498,19 @@ bun run dev        # http://localhost:4700
 ```
 
 - **`/docs/`** — GitBook-style tutorials: hello world → state & binds → lists → forms →
-  server data (optimistic/rollback) → overlays → theming → components → verb reference.
+  server data (optimistic/rollback) → overlays → theming → components → verb reference →
+  landing patterns.
 - **`/pages/`** — the full component gallery; every variant of every enhancer. Copy
   patterns from here rather than inventing syntax.
+  [`/pages/landing.html`](pages/landing.html) is a whole startup landing page written in the
+  grammar — sticky header, animated hero, stats that animate on scroll, a billing toggle,
+  pricing tiers, a `<details>` FAQ and a form that toasts then clears.
 - **`/docs/examples/`** — runnable singles (hello world, counter, two-way binding, list,
-  server data, sortable, overlays, theming, `ui:use`, custom elements).
+  server data, sortable, overlays, theming, `ui:use`, custom elements) plus the four
+  landing-page building blocks: [hero](docs/examples/hero.html),
+  [pricing](docs/examples/pricing.html), [stats](docs/examples/stats.html),
+  [FAQ](docs/examples/faq.html) — each embedded and running in
+  [landing patterns](docs/landing-patterns.html).
 
 ## Development
 
@@ -424,6 +520,8 @@ bun run dev              # dev server on :4700 — pages, docs, mock API (PORT e
 bun run build            # bundle src/ → dist/leonui.js + dist/leonui.iife.js + dist/cli.mjs
 bun run typecheck        # tsc --noEmit — must stay clean
 bun run check            # ui check over the cwd — browser-free markup verification
+bun run grammar          # regenerate the skill's grammar table from src/vocab.ts
+bun run grammar:check    # fail if any generated file is stale (CI gate)
 bun test tests/          # the full suite, real Chromium over CDP (prints its own count)
 bun run bench            # regenerate benchmark.md from measured runs
 ```
@@ -432,7 +530,7 @@ The test suite drives a locally cached Chromium headless shell over the DevTools
 with a dependency-free harness (`tests/harness.ts`): e2e for every component variant and
 verb, CSS contracts (tokens, dark-mode flip, cascade-layer precedence), framework
 comparison parity, accuracy/regression guarantees, vocabulary validation, the browser-free
-checker, skill/grammar consistency, and an agent emission audit. Artifacts land in
+checker, skill/grammar consistency, motion, and an agent emission audit. Artifacts land in
 `tests/artifacts/`.
 
 Two environment notes for running the suite on a machine where the Chromium download is
@@ -457,7 +555,8 @@ GET    /api/boom           -> always 500 (error-state testing)
 src/
   types.ts       Signal, Scope, Ast (discriminated union), Verb — the internals contract
   vocab.ts       the closed vocabulary, stated once: names, aspects, verbs, icons,
-                 enhancer prop value sets + hosts, and the validators both halves read
+                 enhancer prop value sets + hosts, companions and core-attr requirements,
+                 and the validators both halves read
   signals.ts     cells, ancestor-chain scoping, dependency tracking, observable warns
   parser.ts      whitelist expression language — typed AST, no eval, ever
   state.ts       ui:state declarations (incl. GET remote cells) + ui:computed
@@ -468,19 +567,20 @@ src/
   fx.ts          closed effect-verb catalog + onfail/onsuccess response gates
   check.ts       browser-free static checker — the same findings, without a browser
   cli.ts         `ui check` — directory walk, text/JSON output, exit code
-  scan.ts        attach passes (isolated) + ui:use template components + attach() API
+  scan.ts        attach passes (isolated, requirement pass first) + ui:use templates + attach()
   boot.ts        full-tree boot + window.__ui debug hook
   cdn.ts         classic-script entry → dist/leonui.iife.js (window.leonui)
   version.ts     version, inlined from package.json by the bundler
   index.ts       public entry — importing it boots the runtime
-  ui.css         shipped stylesheet: @layer ui.tokens, ui.base
+  ui.css         shipped stylesheet: @layer ui.tokens, ui.base (incl. the motion block)
 serve/           Bun.serve dev server: static pages + mock REST API
 tests/           CDP harness + e2e, accuracy, comparisons, vocabulary, checker,
-                 grammar/skill/docs/sortable/audit suites
+                 motion, landing, grammar/skill/docs/sortable/audit suites
 bench/           the four benchmark pages + pre-bundled vendor runtimes
-scripts/         bench.ts — regenerates benchmark.md + tests/artifacts/
-pages/           component gallery (served at /pages/)
-docs/            tutorial site (served at /docs/) with live examples
+scripts/         bench.ts (regenerates benchmark.md + tests/artifacts/),
+                 grammar.ts (renders the skill's grammar table from src/vocab.ts)
+pages/           component gallery (served at /pages/), incl. a full landing page
+docs/            tutorial site (served at /docs/) with live examples + landing examples
 skill/           the packaged agent-facing grammar (byte-identical to repo-root skills/)
 ```
 
@@ -504,10 +604,13 @@ proposing new attributes or verbs. The short version:
 - Two namespaces: native meaning stays bare; framework behavior is `ui:`-prefixed.
 - Five families, extended only through five named doors: a new **aspect** (must mirror a
   DOM property), a new **verb** (must map to a platform capability), a new **enhancer**
-  (must state its allowed host tags), a new **pure builtin** (must be side-effect-free),
-  or — for everything else — a **custom element**, the designated escape valve.
-- Every addition updates the vocabulary table (`skill/SKILL.md`) in the same commit;
-  `tests/skill.test.ts` keeps skill, source, and docs in lockstep.
+  (must state its allowed host tags and any companion attribute it requires), a new **pure
+  builtin** (must be side-effect-free), or — for everything else — a **custom element**,
+  the designated escape valve.
+- Every addition updates the vocabulary table in the same commit — which means editing
+  `src/vocab.ts` and running `bun run grammar`, because the table in the skill is generated
+  from it. `tests/skill.test.ts` and `bun run grammar:check` keep skill, source, and docs
+  in lockstep.
 - The grammar budget: if the whole vocabulary can't stay teachable in-context, it's too
   big. When in doubt, leave it out.
 
@@ -516,7 +619,7 @@ new behavior ships with a test in `tests/`.
 
 ## Status and known gaps
 
-Pre-1.0 (`v0.2.1`). The core is exercised by a green suite over real Chromium (plus a
+Pre-1.0 (`v0.3.0`). The core is exercised by a green suite over real Chromium (plus a
 browser-free half for the checker and the vocabulary table). Known
 v0 gaps are tracked and honest: **reparenting re-resolution**, **shadow-DOM scope
 crossing**, and **SSR** are not yet solved. Subscriber disposal on row removal *was* on

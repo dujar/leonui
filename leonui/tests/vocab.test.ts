@@ -17,9 +17,11 @@ import assert from 'node:assert/strict';
 import { app } from '../serve/app.ts';
 import { Browser, Page } from './harness.ts';
 import {
-  ENHANCER_NAMES, ENHANCER_SPECS, enhancerAttrProblems, enhancerProblems, enhancerRejects,
-  rejectedProps, suggest, ICON_NAMES, VERB_NAMES, ASPECTS, remoteDecl,
+  ENHANCER_NAMES, ENHANCER_SPECS, attrRejects, enhancerAttrProblems, enhancerProblems, enhancerRejects,
+  rejectedProps, requirementProblems, suggest, ICON_NAMES, VERB_NAMES, VERBS, GATES, ASPECTS, remoteDecl,
 } from '../src/vocab.ts';
+import { ENHANCERS } from '../src/enhancers.ts';
+import { VERB_HANDLERS } from '../src/fx.ts';
 
 /* ================= pure: the table ================= */
 
@@ -109,10 +111,84 @@ test('vocab: the HTML-attribute guard is load-bearing, not decoration', () => {
   assert.match(enhancerAttrProblems('ui:stack', ['gap', 'gapp'])[0]!, /did you mean "gap"\?/);
 });
 
+test('vocab: a companion attribute without its partner is named, not inert', () => {
+  // Each of these is read in exactly one place — each.ts, fx.ts — and only when the
+  // partner is already present, so the pass that would have noticed is exactly the
+  // pass that never ran. `ui:sortable` on a plain <ul> looked like a working list.
+  assert.match(requirementProblems('ui:sortable', { has: () => false })[0]!, /ui:sortable needs "ui:each" on the same element/);
+  assert.match(requirementProblems('ui:key', { has: () => false })[0]!, /ui:key needs "ui:each"/);
+  assert.match(requirementProblems('ui:transition', { has: () => false })[0]!, /ui:transition needs "ui:fx"/);
+  assert.match(requirementProblems('ui:sortable', { has: () => false })[0]!, /\(no effect\)$/);
+  // satisfied is silent
+  assert.deepEqual(requirementProblems('ui:sortable', { has: a => a === 'ui:each' }), []);
+  assert.deepEqual(requirementProblems('ui:transition', { has: () => true }), []);
+  // enhancers carry their own requirements; this table is the core half
+  assert.deepEqual(requirementProblems('ui:stack', { has: () => false }), []);
+  // no `has` means no evidence — a caller that cannot answer must not be warned at
+  assert.deepEqual(requirementProblems('ui:sortable', {}), []);
+});
+
+test('vocab: ui:model needs a form control, and a custom element is not second-guessed', () => {
+  for (const host of ['input', 'textarea', 'select']) {
+    assert.deepEqual(requirementProblems('ui:model', { host }), [], `${host} is a control`);
+  }
+  assert.match(
+    requirementProblems('ui:model', { host: 'div' })[0]!,
+    /ui:model requires <input> or <textarea> or <select>, found <div> — not applied/,
+  );
+  // A hyphenated tag is a custom element by specification. What its `.value` means
+  // is its author's business, so the runtime refuses only what it can be sure of.
+  assert.deepEqual(requirementProblems('ui:model', { host: 'my-slider' }), []);
+});
+
+test('vocab: attrRejects is the union of both requirement tables', () => {
+  // the enhancer half, reached through the same door
+  assert.match(attrRejects('ui:modal', { host: 'div' })!, /requires <dialog>, found <div>/);
+  // the core half
+  assert.match(attrRejects('ui:model', { host: 'div' })!, /requires <input>/);
+  assert.match(attrRejects('ui:sortable', { has: () => false })!, /needs "ui:each"/);
+  // and silence when nothing is wrong — including for an attribute with no
+  // requirements at all, which is most of them
+  assert.equal(attrRejects('ui:card', { host: 'section' }), null);
+  assert.equal(attrRejects('ui:model', { host: 'input' }), null);
+  assert.equal(attrRejects('ui:divider', { host: 'div', has: () => false }), null);
+});
+
+test('vocab: every declared enhancer is implemented, and every implementation declared', () => {
+  // A spec with no implementation is precisely the silent no-op this table exists
+  // to prevent: `ui check` accepts the name, the skill documents it, and the page
+  // does nothing at all. This is the test that goes red the moment a spec is added
+  // ahead of its enhancer — which is how `ui:reveal` was caught.
+  const undeclared = Object.keys(ENHANCERS).filter(n => !Object.hasOwn(ENHANCER_SPECS, n));
+  const unimplemented = ENHANCER_NAMES.filter(n => !Object.hasOwn(ENHANCERS, n));
+  assert.deepEqual(unimplemented, [], `declared in vocab.ts but not implemented in enhancers.ts: ${unimplemented.join(', ')}`);
+  assert.deepEqual(undeclared, [], `implemented in enhancers.ts but not declared in vocab.ts: ${undeclared.join(', ')}`);
+});
+
 test('vocab: the verb table is the runtime catalog', () => {
-  assert.equal(VERB_NAMES.length, 13, '11 verbs + 2 response gates');
+  // Composed, not counted. A hardcoded length here is a second place the catalog
+  // lives, and it went stale the moment `dismiss` was added — which is a nuisance
+  // in a test and a silent no-op in the runtime. The contract is the composition.
+  assert.deepEqual([...VERB_NAMES], [...VERBS, ...GATES]);
+  assert.ok(VERBS.length > 0 && GATES.length > 0);
   assert.deepEqual([...VERB_NAMES].slice(0, 3), ['set', 'toggle', 'call']);
   assert.deepEqual([...ASPECTS], ['text', 'class', 'hidden', 'disabled', 'checked', 'open']);
+});
+
+test('vocab: every catalog verb has a handler, and every handler is a catalog verb', () => {
+  // The pin the enhancer tables have had all along and the verbs did not. `fx.ts`
+  // used to dispatch through an if-chain, which cannot be introspected — so
+  // declaring a verb in `vocab.ts` and forgetting to implement it produced markup
+  // that parsed, passed `ui check`, appeared in the generated skill table, and did
+  // nothing when the event fired. Both directions are checked: a handler for a
+  // name that is not in the catalog means the catalog is lying about its size.
+  const handled = Object.keys(VERB_HANDLERS);
+  const unimplemented = VERB_NAMES.filter(n => !handled.includes(n));
+  assert.deepEqual(unimplemented, [],
+    `declared in vocab.ts with no implementation in VERB_HANDLERS: ${unimplemented.join(', ')}`);
+  const undeclared = handled.filter(n => !VERB_NAMES.includes(n));
+  assert.deepEqual(undeclared, [],
+    `implemented in VERB_HANDLERS but absent from the catalog: ${undeclared.join(', ')}`);
 });
 
 test('vocab: a bare GET is a mistake, not a literal string', () => {
@@ -159,6 +235,9 @@ async function probe(): Promise<{ warns: string[]; p: Page }> {
       ['div',    'e-badge',  { 'ui:badge': '', variant: 'success' }],
       ['div',    'e-ok-stack',{ 'ui:stack': '', gap: '3', align: 'center' }],
       ['div',    'e-typo',   { 'ui:button': '', varient: 'primary' }],
+      ['div',    'e-sortable',{ 'ui:sortable': '' }],
+      ['div',    'e-keyonly', { 'ui:key': 'id' }],
+      ['div',    'e-transonly',{ 'ui:transition': '' }],
     ];
     for (const [tag, id, attrs] of cases) {
       const el = document.createElement(tag);
@@ -166,12 +245,24 @@ async function probe(): Promise<{ warns: string[]; p: Page }> {
       for (const k of Object.keys(attrs)) el.setAttribute(k, attrs[k]);
       document.body.append(el);
     }
+    // the model cases need a signal to resolve against, so they live inside a scope
+    const scope = document.createElement('div');
+    scope.id = 'e-scope';
+    scope.setAttribute('ui:state', 'mv: 1');
+    document.body.append(scope);
+    for (const [tag, id] of [['div', 'e-model-div'], ['input', 'e-model-ok'], ['my-slider', 'e-model-ce']]) {
+      const el = document.createElement(tag);
+      el.id = id;
+      el.setAttribute('ui:model', 'mv');
+      scope.append(el);
+    }
     window.__ui.warns.length = 0;
   })()`);
   await p.eval(`import('/dist/leonui.js').then(m => {
-    for (const id of ['e-gap','e-align','e-var','e-ratio','e-modal','e-icon','e-badname','e-ok-icon','e-badge','e-ok-stack','e-typo']) {
+    for (const id of ['e-gap','e-align','e-var','e-ratio','e-modal','e-icon','e-badname','e-ok-icon','e-badge','e-ok-stack','e-typo','e-sortable','e-keyonly','e-transonly']) {
       m.attach(document.getElementById(id));
     }
+    m.attach(document.getElementById('e-scope'));
   })`);
   return { warns: await p.eval<string[]>('window.__ui.warns'), p };
 }
@@ -231,6 +322,39 @@ t('vocab runtime: a misspelled prop warns at attach time', async () => {
   );
   // and the element still got the enhancer, just without the variant it never saw
   assert.equal(await p.eval(`document.getElementById('e-typo').className`), 'ui-btn');
+  await p.close();
+});
+
+t('vocab runtime: a companion attribute with no partner warns and does nothing', async () => {
+  const { warns, p } = await probe();
+
+  assert.ok(
+    warns.some(w => /ui:sortable needs "ui:each" on the same element \(no effect\)/.test(w)),
+    `expected a sortable warning, got: ${JSON.stringify(warns)}`,
+  );
+  assert.ok(warns.some(w => /ui:key needs "ui:each"/.test(w)), 'key warning');
+  assert.ok(warns.some(w => /ui:transition needs "ui:fx"/.test(w)), 'transition warning');
+  await p.close();
+});
+
+t('vocab runtime: ui:model on a non-control is named and refused; controls and custom elements are not', async () => {
+  const { warns, p } = await probe();
+
+  assert.ok(
+    warns.some(w => /ui:model requires <input> or <textarea> or <select>, found <div>/.test(w)),
+    `expected a model host warning, got: ${JSON.stringify(warns)}`,
+  );
+  // refused, not merely reported: writing `.value` onto a <div> makes an expando
+  // and subscribing to input/change on it listens for events it cannot fire
+  assert.equal(
+    await p.eval(`Object.hasOwn(document.getElementById('e-model-div'), 'value')`), false,
+    'no expando .value was created on the <div>',
+  );
+  // the real control still binds, so the guard did not cost anything
+  assert.equal(await p.eval(`document.getElementById('e-model-ok').value`), '1');
+  // a custom element's `.value` is its author's business — the runtime refuses only
+  // what it can be certain about, so exactly one host warning was emitted
+  assert.equal(warns.filter(w => /ui:model requires/.test(w)).length, 1, 'one host warning, not two');
   await p.close();
 });
 

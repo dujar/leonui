@@ -1,0 +1,36 @@
+<!doctype html><html lang="en"><head><title>FAQ accordion</title><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/src/ui.css"><style>
+  body { padding: 1.5rem 1.25rem; font-size: 15px; }
+  .faq { display: grid; gap: .5rem; margin-top: 1rem; }
+</style></head>
+<body>
+  <h1 class="ui-t-subtitle">Questions people actually ask</h1>
+
+  <!-- `details` + `summary` is the platform's own accordion: it opens with no
+       JavaScript, it is keyboard-operable for free, and it is findable by
+       in-page search. All leonui adds is the `ui-acc` *class* on the <details> —
+       the styling and the marker rotation. There is no `ui:acc` attribute: an
+       accordion holds no state the runtime could own, so it needs no grammar. -->
+  <div class="faq">
+    <details class="ui-acc" ui:reveal stagger="1">
+      <summary>Do my clients need an account?</summary>
+      <div class="ui-acc-body">No. They get a payment link and a PDF. Nothing to sign up for, nothing to remember.</div>
+    </details>
+    <details class="ui-acc" ui:reveal stagger="1">
+      <summary>What happens after the 14-day trial?</summary>
+      <div class="ui-acc-body">Nothing automatic. Your account drops to the free Solo plan and keeps working for up to three clients.</div>
+    </details>
+    <details class="ui-acc" ui:reveal stagger="2">
+      <summary>Can I change the reminder wording?</summary>
+      <div class="ui-acc-body">Every template is editable, and each escalation step can be turned off on its own. The tone is yours.</div>
+    </details>
+    <details class="ui-acc" ui:reveal stagger="3">
+      <summary>How do I get my data out?</summary>
+      <div class="ui-acc-body">One click, any time: CSV, or the accountant format of your choice. No export fee and no lock-in.</div>
+    </details>
+  </div>
+
+  <!-- Reveal and <details> compose: the reveal animates the row in once, and the
+       row keeps its own native open/close behaviour afterwards. -->
+  <p class="ui-t-muted" style="margin-top:1rem">Four rows, four attributes, zero JavaScript.</p>
+<script type="module" src="/dist/leonui.js"></script>
+</body></html>

@@ -3,7 +3,11 @@
 The grammar is the product. Agents learn it in-context; humans grep it; contributors extend
 it. This document is the rulebook for naming anything the framework authors, so growth is
 governed by policy instead of taste. Everything below is checkable against the one
-authoritative vocabulary table: `skill/SKILL.md`.
+authoritative vocabulary table, `src/vocab.ts` — the runtime and the browser-free `ui check`
+read it directly, and the table printed in `skill/SKILL.md` is **generated** from it by
+`bun run grammar`. A stale table is a build failure (`bun run grammar:check`), not a review
+note: the third reader of the table is the authoring agent, and a hand-copied table is free
+to drift away from what the runtime enforces.
 
 ## 1. Two namespaces, one test
 
@@ -21,7 +25,8 @@ Bare attributes are invented only in these licensed lanes:
    `role` (e.g. `data-screen` marks nav screens).
 
 Anything bare outside these lanes is a bug. Every `ui:*` attribute must appear in the
-vocabulary table (`skill/SKILL.md`) — enforced by `tests/skill.test.ts`.
+vocabulary table (`src/vocab.ts`, rendered into `skill/SKILL.md`) — enforced by
+`tests/skill.test.ts`, which reads the table rather than a hand-copied list.
 
 ## 2. The `ui:` space has five families — heads plus named satellites
 
@@ -82,6 +87,34 @@ the same finding before render. A value outside its set falls back to the defaul
 host does not run at all. Neither is silent, because a value nothing understands is
 indistinguishable from a bug in the author's markup.
 
+**Behavior enhancers are enhancers.** `ui:reveal` is the first whose props describe motion
+rather than looks (`from`, `trigger`, `stagger`); it obeys the same rules — bare props, a
+closed value vocabulary per prop, a documented failure story. Motion carries one obligation
+nothing else has, because an animation can *hide* content: **the armed (hidden) state is
+scoped to a class the runtime sets**, never to `[ui:reveal]` itself, so a page whose bundle
+404s, whose CDN is blocked, or where JS is off renders every element. An animation that can
+make content disappear when the runtime is absent is a bug, not a styling choice.
+
+**Requirements are stated, never implied.** Some names are inert on their own: `ui:key` keys
+nothing without `ui:each`, `ui:sortable` sorts nothing without `ui:each`, `ui:transition`
+wraps nothing without `ui:fx`, and `ui:model` needs a form control to write to. An unstated
+requirement is exactly the silent no-op this rulebook forbids, so the table states three
+maps and both halves of the contract enforce them *above every other pass* — which is where
+they have to run, because each of those attributes is read in the one place that only runs
+once its partner is already present:
+
+- **`COMPANIONS`** (`attr → the attribute that must sit on the same element`) — a missing
+  partner warns and **skips**: `ui: key needs "ui:each" on the same element (no effect)`.
+- **`CORE_HOSTS`** (`core attr → the tags it is legal on`) — a wrong host warns and skips.
+- **`CORE_PROPS`** (`core attr → the value shape its slot accepts`) — the same value
+  vocabularies enhancer props get. This one catches a real trap: `ui:key`'s value is a
+  *property name* (`item[key]`), not a path, so `ui:key="row.id"` keys every row by index.
+
+One carve-out, deliberate: a tag containing `-` is a **custom element by specification**, so
+`CORE_HOSTS` never applies to it. The runtime refuses only what it can be certain about —
+second-guessing `<my-input ui:model>` would be a false positive, and a checker that cries
+wolf is worse than no checker.
+
 ## 5. Flags: state what becomes true
 
 Behavior flags are `ui:`-prefixed **adjectives or nouns-read-as-modifiers** on the
@@ -121,7 +154,12 @@ New vocabulary enters **only** through one of:
 5. **anything beyond these = a custom element**, which is the designated escape valve
    for library authors — the page grammar stays closed and checkable.
 
-Each addition updates the vocabulary table (`skill/SKILL.md`) in the same commit.
+Each addition updates the vocabulary table in the same commit — which now means editing
+`src/vocab.ts` and running `bun run grammar`: the table in `skill/SKILL.md` (and its
+repo-root twin) is generated from it, `grammar.json` is dumped for both, and
+`bun run grammar:check` fails if any of the four is stale. A hand-maintained table was the
+one place the vocabulary could drift from what the runtime enforced; it is now the place it
+cannot.
 Pre-1.0 renames: old name becomes an alias for one minor version, with a `warns` entry.
 An ALIASES table in the runtime is a **1.0-blocking commitment** — post-1.0 renames
 without it break every published page.
@@ -135,6 +173,15 @@ revisit only pre-1.0 with a migration benchmark.
 
 ## 9. The grammar budget
 
-The entire vocabulary must stay teachable in-context (target: the full grammar spec
-≤ ~2,000 tokens). Every proposal states its token cost. When in doubt, leave it out —
-an agent that can hold the whole grammar in its head is the product's reason to exist.
+The vocabulary must stay teachable in-context. The budget is measured on the **generated
+grammar table** in `skill/SKILL.md` — the part an agent has to hold *exactly*, and the only
+part that grows every time the vocabulary does — and it is **≤ ~2,000 tokens**. Today it is
+~510 tokens: 2,046 characters across the three `BEGIN/END GENERATED` regions, 1,839 of them
+the enhancers table. `skill/grammar.json` is the same vocabulary in full, at ~1,350.
+
+The prose around the table is deliberately *not* budgeted. Gotchas, examples and failure
+modes are read once and skimmed thereafter, and they are the part that earns its length;
+when they crowd the table they move to `docs/`. What the budget protects is that the closed
+set an agent must remember exactly stays small enough to hold in one pass. Every proposal
+states its token cost. When in doubt, leave it out — an agent that can hold the whole
+grammar in its head is the product's reason to exist.

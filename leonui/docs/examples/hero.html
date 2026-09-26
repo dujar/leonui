@@ -1,0 +1,21 @@
+<!doctype html><html lang="en"><head><title>animated hero</title><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/src/ui.css"><style>
+  body { padding: 2rem 1.25rem; text-align: center; font-size: 15px; }
+  h1 { font-size: clamp(1.6rem, 6vw, 2.4rem); line-height: 1.08; letter-spacing: -.03em; margin: .8rem auto 0; max-width: 20ch; }
+  .lede { color: var(--muted); max-width: 42ch; margin: .9rem auto 0; }
+  .actions { display: flex; gap: .5rem; justify-content: center; flex-wrap: wrap; margin-top: 1.4rem; }
+  .note { color: var(--muted); font-size: .8rem; margin-top: .9rem; }
+</style></head>
+<body>
+  <!-- One attribute per element, `trigger="load"` so it plays immediately, and
+       `stagger` 0..4 so the five parts arrive in sequence rather than at once.
+       The whole hero is 5 attributes and no JavaScript. -->
+  <span class="ui-badge ui-b-brand" ui:reveal trigger="load" stagger="0">New — automatic late-fee reminders</span>
+  <h1 ui:reveal trigger="load" stagger="1">Invoicing that chases your late payers</h1>
+  <p class="lede" ui:reveal trigger="load" stagger="2">Tessera sends the invoice, watches the due date, and follows up in your voice until it is paid.</p>
+  <div class="actions" ui:reveal trigger="load" stagger="3">
+    <button ui:button variant="primary" ui:fx="click: toast 'Thanks — your trial link is on its way'">Start free for 14 days</button>
+    <button ui:button ui:fx="click: toast 'Pricing is in the other example'">See pricing</button>
+  </div>
+  <p class="note" ui:reveal trigger="load" stagger="4">No card required · Cancel in one click</p>
+<script type="module" src="/dist/leonui.js"></script>
+</body></html>

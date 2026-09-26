@@ -46,8 +46,9 @@ done. Cheapest form: a fresh agent asked to "find what kills this."
    this by comparing against `package.json`.
 3. `bun run build` (emits both ESM and IIFE bundles).
 4. Full suite: `bun test tests/` — must be all green on the exact build.
-5. `npm publish` (the pack is ~45 kB; verify with `npm pack --dry-run` if the
-   files list changed).
+5. `npm publish` (the pack is ~128 kB / 68 files — the `files` list ships `dist`,
+   `src`, `skill`, `pages` and `docs`, and `pages/landing.html` alone is 23 kB.
+   Verify with `npm pack --dry-run` if the files list changed).
 6. Commit, tag (npm version does this), push with `--tags`.
 7. Verify live: registry shows the version; `cdn.jsdelivr.net/npm/leonui@<v>/…`
    serves; load the real CDN URL in a browser and click one verb. The
@@ -78,6 +79,7 @@ not just a green CI.
 - `.agent-workbench/` (design history) and `.zcode/` (local skill install) are
   gitignored; the public design record lives in `naming.md`, `audit.md`,
   `benchmark.md`, and the commit history.
-- Keep `skill/SKILL.md` under the grammar budget: the whole authoring spec
-  must stay loadable in an agent's context. When it grows, something else
-  shrinks or moves to the docs.
+- Keep the generated grammar table in `skill/SKILL.md` under the grammar budget
+  (~2,000 tokens; §9 of `naming.md` says exactly what is measured, and it is
+  ~510 today). The prose around the table is not budgeted — but when it
+  crowds the table, something shrinks or moves to the docs.

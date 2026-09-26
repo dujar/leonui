@@ -45,6 +45,26 @@ t('remote components: fetched files are script-stripped', async () => {
   await p.close();
 });
 
+t('remote components: a file that loads but has no matching #id is named, with the ids it does have', async () => {
+  const p = await browser.newPage(base).then(x => x.goto('/tests/fixtures/remote-components.html', "document.readyState === 'complete' && window.__uiReady === true"));
+  await p.eval(`new Promise(r => setTimeout(r, 200))`);
+
+  // The file loaded, so the fetch succeeded and nothing threw. `loadRemoteTemplate`
+  // returned null, the caller's `if (tpl) instantiate(tpl)` did nothing, and the
+  // component rendered as empty space — the failure mode with no evidence in it.
+  const warns = await p.eval<string[]>('window.__ui.warns');
+  const w = warns.find(x => x.includes('no <template id="typo">'));
+  assert.ok(w, `expected a missing-template warning, got: ${JSON.stringify(warns)}`);
+  assert.match(w!, /in \/tests\/fixtures\/components\/stat\.html — it has #stat/, 'names the ids the file does have');
+
+  // and it really did render nothing, which is why saying so matters
+  assert.equal(
+    await p.eval<number>(`document.querySelector('[ui\\\\:use$="/stat.html#typo"]').children.length`), 0,
+    'no content, no error — just silence',
+  );
+  await p.close();
+});
+
 t('remote components: missing file warns by name, page stays alive', async () => {
   const p = await browser.newPage(base).then(x => x.goto('/tests/fixtures/remote-components.html', "document.readyState === 'complete' && window.__uiReady === true"));
   await p.eval(`new Promise(r => setTimeout(r, 200))`);
