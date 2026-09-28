@@ -7,6 +7,11 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        # the package (and its package.json) live in leonui/ — without this,
+        # `bun install` ran at the repository root and every later step was skipped
+        working-directory: leonui
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
