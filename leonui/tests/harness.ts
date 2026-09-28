@@ -100,7 +100,11 @@ export class Browser {
   }
 
   async close(): Promise<void> {
-    for (const p of this.pages) await Promise.race([p.close().catch(() => {}), sleep(700)]);
+    // concurrently, not one after another: every page closed through a websocket
+    // that is itself closing costs its full 400 ms race, so a file that opens ~40
+    // pages (a11y's shipped-pages pass, both schemes) spent >16 s just tearing
+    // down — past bun's 20 s hook timeout for nothing but close latency.
+    await Promise.all(this.pages.map(p => Promise.race([p.close().catch(() => {}), sleep(700)])));
     this.proc.kill('SIGKILL');
     await sleep(100);
   }

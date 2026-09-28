@@ -79,6 +79,13 @@ const COLLECT = `(() => {
     if (cs.visibility === 'hidden' || cs.display === 'none' || parseFloat(cs.opacity) < 0.95) continue;
     const r = el.getBoundingClientRect();
     if (!r.width || !r.height) continue;
+    // a closed <details> hides its content through the UA's content-visibility:
+    // hidden on ::details-content, which still leaves the children with boxes and
+    // a block, visibility: visible computed style — all three checks above pass on
+    // text that is never painted, and the pixel behind where it would sit belongs
+    // to something else (measured: an accordion body sampled against the next
+    // card's border at 4.17:1). checkVisibility() is the one check that knows.
+    if (!el.checkVisibility()) continue;
     if (!el.id) el.id = 'a11y-' + out.length;
     const c = px(cs.color);
     const size = parseFloat(cs.fontSize);
