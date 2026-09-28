@@ -13,17 +13,46 @@ let anchorSeq = 0;
  * state. The invokers are looked up on each sync rather than captured once, so the
  * popover and its button may be attached in either order.
  *
- * What that does NOT cover: an invoker inserted into the DOM *after* the popover
- * was attached gets no `aria-expanded` until the popover is next toggled. That is
- * a real gap, not a claim — closing it would mean observing the document for
- * invokers, which is a mutation observer per popover for a state the platform
- * re-derives on the next toggle anyway.
+ * An invoker inserted into the DOM *after* the popover was attached is caught by
+ * the document observer below: the platform never announces an insertion, and an
+ * invoker added while the menu is open would otherwise read "Open menu" until the
+ * popover happened to toggle. The observer is shared by every popover and created
+ * once, on the first `ui:popover` attach — not one per popover.
  *
  * A popover with no invoker is left completely alone — `ui:popover` is also used
  * for popovers opened by script, and those have no button to annotate. */
+const MANAGED_POPOVERS = new WeakSet<Element>();
+const INVOKER_SEL = '[popovertarget], [commandfor]';
+let invokerObserver: MutationObserver | undefined;
+
+/** Sync one invoker against the ui:popover it names — or do nothing, when it
+ * names some other page's popover (or an id that does not exist). */
+function syncInvoker(b: Element): void {
+  const target = document.getElementById(b.getAttribute('popovertarget') ?? b.getAttribute('commandfor') ?? '');
+  if (!target || !MANAGED_POPOVERS.has(target)) return;
+  const open = canQueryPopoverOpen() && target.matches(':popover-open');
+  b.setAttribute('aria-expanded', String(open));
+}
+
+function observeInvokers(): void {
+  if (invokerObserver) return;
+  invokerObserver = new MutationObserver(muts => {
+    for (const m of muts) {
+      for (const n of m.addedNodes) {
+        if (n.nodeType !== 1) continue;
+        const root = n as Element;
+        if (root.matches(INVOKER_SEL)) syncInvoker(root);
+        for (const b of root.querySelectorAll(INVOKER_SEL)) syncInvoker(b);
+      }
+    }
+  });
+  invokerObserver.observe(document, { childList: true, subtree: true });
+}
+
 function syncPopoverExpanded(el: Element): void {
   const id = el.id;
   if (!id) return;
+  MANAGED_POPOVERS.add(el);
   const sel = `[popovertarget="${CSS.escape(id)}"], [commandfor="${CSS.escape(id)}"]`;
   const sync = (): void => {
     const open = canQueryPopoverOpen() && el.matches(':popover-open');
@@ -31,6 +60,7 @@ function syncPopoverExpanded(el: Element): void {
   };
   sync();
   el.addEventListener('toggle', sync);
+  observeInvokers();
 }
 
 export function injectSprite(): void {

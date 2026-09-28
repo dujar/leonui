@@ -154,6 +154,40 @@ t('a11y: ui:popover keeps its invoker\'s aria-expanded in step with the popover'
   await p.close();
 });
 
+t('a11y: an invoker inserted after the popover attached still learns its state', async () => {
+  const p = await open();
+  const attr = (id: string): Promise<string | null> =>
+    p.eval<string | null>(`document.getElementById(${JSON.stringify(id)}).getAttribute('aria-expanded')`);
+  const insert = (id: string): string => `{
+    const b = document.createElement('button');
+    b.id = ${JSON.stringify(id)};
+    b.setAttribute('popovertarget', 'nav-menu');
+    document.body.appendChild(b);
+  }`;
+
+  // The platform does not announce an insertion, so a menu button the page adds
+  // later would otherwise stay silent until the popover happened to toggle —
+  // while the menu it describes is open.
+  await p.eval(`document.getElementById('nav-btn').click()`);
+  await p.waitFor(`document.getElementById('nav-menu').matches(':popover-open')`);
+  await p.eval(insert('late-open-btn'));
+  // the annotation lands one observer callback after the insertion, which is
+  // before any reader could look — wait for arrival, then pin the value
+  await p.waitFor(`document.getElementById('late-open-btn').getAttribute('aria-expanded') !== null`);
+  assert.equal(await attr('late-open-btn'), 'true',
+    'an invoker added while the popover is open must state the open state at insertion');
+
+  await p.eval(`document.getElementById('nav-one').click()`);
+  // the late invoker must follow the popover down, not just up
+  await p.waitFor(`document.getElementById('late-open-btn').getAttribute('aria-expanded') === 'false'`);
+
+  await p.eval(insert('late-closed-btn'));
+  await p.waitFor(`document.getElementById('late-closed-btn').getAttribute('aria-expanded') !== null`);
+  assert.equal(await attr('late-closed-btn'), 'false',
+    'an invoker added while the popover is closed must state that too');
+  await p.close();
+});
+
 t('a11y: exactly the popover invokers are annotated, and nothing else is', async () => {
   const p = await open();
   // Named, not counted. A bare count would pass if the attribute landed on the
