@@ -23,7 +23,9 @@
     "dev": "bun run serve/serve.ts",
     "test": "bun test tests/",
     "check": "bun run src/cli.ts check",
-    "bench": "bun run scripts/bench.ts"
+    "bench": "bun run scripts/bench.ts",
+    "grammar": "bun run scripts/grammar.ts",
+    "grammar:check": "bun run scripts/grammar.ts --check"
   },
   "bin": {
     "leonui": "./dist/cli.mjs"

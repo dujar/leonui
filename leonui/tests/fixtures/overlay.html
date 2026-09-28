@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>overlay fixture — dismiss + invoker state</title>
+<link rel="stylesheet" href="/src/ui.css">
+</head>
+<body>
+
+<!-- 1. The case the platform cannot close: a popover made of links. A popover can
+     only be closed from a <button> (popovertargetaction / command=hide-popover are
+     button-only), so a menu of anchors has to close itself or not at all. -->
+<button id="nav-btn" ui:button popovertarget="nav-menu">Menu</button>
+<div id="nav-menu" popover ui:popover>
+  <nav aria-label="Menu">
+    <a id="nav-one" href="#one" ui:fx="click: dismiss">One</a>
+    <a id="nav-two" href="#two" ui:fx="click: dismiss">Two</a>
+    <!-- deliberately NOT dismiss: proves the verb is what closes the sheet, rather
+         than the popover closing on its own when anything inside is clicked -->
+    <a id="nav-plain" href="#three">Three (no dismiss)</a>
+  </nav>
+</div>
+
+<!-- 2. The same verb from a button, which the platform *could* have done. -->
+<button id="act-btn" ui:button popovertarget="act-menu">Actions</button>
+<div id="act-menu" popover ui:popover role="menu" aria-label="Actions">
+  <button id="act-one" role="menuitem" ui:fx="click: dismiss; toast 'done'">Do it</button>
+</div>
+
+<!-- 3. A modal dialog, closed from the inside. A different element with a different
+     close mechanism — the verb walks outward and finds whichever it is inside. -->
+<button id="dlg-btn" ui:button command="show-modal" commandfor="dlg">Open modal</button>
+<dialog id="dlg" ui:modal>
+  <button id="dlg-close" ui:button ui:fx="click: dismiss">Close</button>
+</dialog>
+
+<!-- 4. dismiss with nothing to dismiss: must name the miss, not throw. -->
+<button id="lonely" ui:button ui:fx="click: dismiss">Lonely</button>
+
+<!-- 5. A popover opened by script, with no invoker to annotate. -->
+<div id="scripted" popover ui:popover><span>opened by script</span></div>
+
+<!-- 6. dismiss must walk PAST a closed <dialog>. Stopping at it merely because it
+     is the right kind of element swallows the walk: an element inside a closed
+     dialog that itself sits inside an open popover would close nothing and warn
+     nothing, which is the one outcome this verb promises never to produce. -->
+<button id="outer-btn" ui:button popovertarget="outer">Outer</button>
+<div id="outer" popover ui:popover>
+  <dialog id="inner-dlg">
+    <button id="past-dlg" ui:button ui:fx="click: dismiss">Dismiss past the closed dialog</button>
+  </dialog>
+  <p>the outer popover</p>
+</div>
+
+<div id="one">one</div>
+<div id="two">two</div>
+<div id="three">three</div>
+
+<script type="module" src="/dist/leonui.js"></script>
+</body>
+</html>

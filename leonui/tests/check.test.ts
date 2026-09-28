@@ -98,11 +98,59 @@ test('check: declarations', () => {
   assert.deepEqual(checkHtml('t.html', `<div ui:state="rows: GET /api/rows"></div>`), []);
 });
 
+test('check: a second ui:computed declaration is named as the cause, not the symptom', () => {
+  // `ui:state` and `ui:bind` split on `;`; `ui:computed` does not. A second
+  // declaration reads as part of the expression, and the parser's honest answer —
+  // "trailing input" — leaves the author to work out what the trailing input is.
+  const fs = checkHtml('t.html', `<div ui:computed="a: n * 2; b: n + 1"></div>`);
+  assert.equal(fs.length, 1);
+  assert.match(fs[0]!.message, /ui:computed takes one declaration per element/);
+  assert.match(fs[0]!.message, /move "b: n \+ 1" onto its own element/);
+  // a `;` inside a string literal is just a character
+  assert.deepEqual(checkHtml('t.html', `<div ui:computed="label: 'a; b'"></div>`), []);
+  // and the ordinary single declaration is untouched
+  assert.deepEqual(checkHtml('t.html', `<div ui:computed="d: n * 2"></div>`), []);
+});
+
 test('check: repeat, model and key paths', () => {
   assert.match(one(checkHtml('t.html', `<ul ui:each="row inn rows"></ul>`), /bad each/)!.message, /expected "item in listPath"/);
-  assert.match(one(checkHtml('t.html', `<ul ui:each="row in rows"><li ui:key="row."></li></ul>`), /bad key path "row\."/)!.message, /bad key path/);
   assert.match(one(checkHtml('t.html', `<input ui:model="row .">`), /bad model path/)!.message, /bad model path/);
-  assert.deepEqual(checkHtml('t.html', `<ul ui:each="row in rows"><li ui:key="row.id"></li></ul>`), []);
+  // `ui:key` belongs on the SAME element as `ui:each` — that is the only place
+  // each.ts reads it, so on a child it was inert. This fixture used to assert the
+  // child form was clean, which is exactly the silent no-op being fixed here.
+  assert.match(
+    one(checkHtml('t.html', `<ul ui:each="row in rows"><li ui:key="row.id"></li></ul>`), /needs "ui:each"/)!.message,
+    /ui:key needs "ui:each" on the same element/,
+  );
+  // and its value is a property NAME on the item, not a path: item["row.id"] is
+  // undefined, so every row quietly keyed by index — the guarantee, silently gone
+  assert.match(
+    one(checkHtml('t.html', `<ul ui:each="row in rows" ui:key="row.id"></ul>`), /expected a property name/)!.message,
+    /item\[key\], so a dotted path resolves to nothing/,
+  );
+  // the correct form is quiet, and omitting the key is legal (it defaults to "id")
+  assert.deepEqual(checkHtml('t.html', `<ul ui:each="row in rows" ui:key="id"></ul>`), []);
+  assert.deepEqual(checkHtml('t.html', `<ul ui:each="row in rows"></ul>`), []);
+});
+
+test('check: ui:key is judged on the value the runtime will actually read', () => {
+  // The runtime does `item[getAttribute('ui:key')]`. It does not trim, so
+  // `ui:key=" id "` looks up the property " id " — undefined — and every row falls
+  // back to its index. The checker used to trim before validating, so it accepted a
+  // value the runtime could not honour: a page that passed `ui check` and then
+  // warned in a console nobody was watching. The two halves disagreed about the
+  // same file, which is the one thing this pair of verifiers may never do.
+  assert.match(
+    one(checkHtml('t.html', `<ul ui:each="row in rows" ui:key=" id "></ul>`), /expected a property name/)!.message,
+    /ui:key=" id "/,
+  );
+  // A present-but-empty ui:key is not the default — it is an attribute that reads
+  // nothing from the item. `each.ts` falls back to "id" because '' is falsy, so the
+  // attribute silently does nothing at all: the same shape of no-op as a dotted path.
+  assert.match(
+    one(checkHtml('t.html', `<ul ui:each="row in rows" ui:key=""></ul>`), /is empty/)!.message,
+    /nothing is read from the item/,
+  );
 });
 
 test('check: verbs are validated against the closed catalog', () => {
@@ -141,6 +189,38 @@ test('check: a misspelled prop name is caught, a foreign attribute is not', () =
   assert.deepEqual(checkHtml('t.html', `<div ui:badge tracking-id="7"></div>`), []);
   // an enhancer with no props to misspell
   assert.deepEqual(checkHtml('t.html', `<div ui:divider whatever="1"></div>`), []);
+});
+
+test('check: requirements that are not about props are reported too', () => {
+  // A partner attribute on the same element. These were invisible to every pass
+  // that could have noticed: the pass that reads `ui:sortable` only runs when
+  // `ui:each` is present, which is exactly the case where it is not wrong.
+  assert.match(one(checkHtml('t.html', `<ul ui:sortable><li>x</li></ul>`), /needs "ui:each"/)!.message, /ui:sortable needs "ui:each" on the same element/);
+  assert.match(one(checkHtml('t.html', `<li ui:key="id"></li>`), /needs "ui:each"/)!.message, /ui:key needs "ui:each"/);
+  assert.match(one(checkHtml('t.html', `<div ui:transition></div>`), /needs "ui:fx"/)!.message, /ui:transition needs "ui:fx"/);
+  // and a host contract, from the same table
+  assert.match(one(checkHtml('t.html', `<div ui:model="q"></div>`), /ui:model requires/)!.message, /requires <input> or <textarea> or <select>, found <div>/);
+  // satisfied is silent, and so is a host the runtime declines to judge
+  assert.deepEqual(checkHtml('t.html', `<ul ui:each="r in rows" ui:sortable ui:key="id"></ul>`), []);
+  assert.deepEqual(checkHtml('t.html', `<input ui:model="q">`), []);
+  assert.deepEqual(checkHtml('t.html', `<my-slider ui:model="q"></my-slider>`), [], 'a custom element is its own business');
+});
+
+test('check: ui:use needs a template id', () => {
+  // without one the local form hands a CSS selector to querySelector (SyntaxError)
+  // and the remote form is not recognised as remote at all — either way the runtime
+  // message is about CSS, never about the id that is actually missing
+  assert.match(one(checkHtml('t.html', `<div ui:use="card.html"></div>`), /bad use/)!.message, /expected "#template-id"/);
+  assert.match(one(checkHtml('t.html', `<div ui:use="#"></div>`), /bad use/)!.message, /needs a template id after it/);
+  assert.deepEqual(checkHtml('t.html', `<div ui:use="#card"></div>`), []);
+  assert.deepEqual(checkHtml('t.html', `<div ui:use="/components/card.html#card"></div>`), []);
+});
+
+test('check: ui:reveal validates its props like any other enhancer', () => {
+  assert.match(one(checkHtml('t.html', `<section ui:reveal from="sideways"></section>`), /ui:reveal from/)!.message, /allowed: fade\|up\|down\|left\|right\|zoom/);
+  assert.match(one(checkHtml('t.html', `<section ui:reveal stagger="99"></section>`), /ui:reveal stagger/)!.message, /integer 0\.\.8/);
+  assert.match(one(checkHtml('t.html', `<section ui:reveal trigger="hover"></section>`), /ui:reveal trigger/)!.message, /allowed: scroll\|load/);
+  assert.deepEqual(checkHtml('t.html', `<section ui:reveal from="up" trigger="scroll" stagger="3"></section>`), []);
 });
 
 /* ================= positions ================= */
@@ -182,10 +262,13 @@ test('check: an unbalanced tag does not throw', () => {
 
 /* ================= the CLI ================= */
 
-function run(args: string[]): { code: number; out: string; err: string; all: string } {
+function run(args: string[], cwd?: string): { code: number; out: string; err: string; all: string } {
   const r = Bun.spawnSync({
     cmd: [process.execPath, join(pkg, 'src/cli.ts'), ...args],
     env: { ...process.env, NO_PROXY: '127.0.0.1,localhost' },
+    // cwd matters for the no-path form: the default target is ".", so a test of
+    // the default target has to control what "." is.
+    ...(cwd ? { cwd } : {}),
   });
   const out = r.stdout.toString();
   const err = r.stderr.toString();
@@ -248,6 +331,111 @@ test('cli: --help and --version do not scan anything, an unknown flag is rejecte
   const bogus = run(['check', '--nope']);
   assert.equal(bogus.code, 2, 'a usage error is distinguishable from a finding');
   assert.match(bogus.err, /unknown option "--nope"/);
+});
+
+test('cli: `check` is the subcommand, not a path to scan', () => {
+  // Every other CLI test passes an explicit directory, which is exactly why this
+  // survived: with a path present the stray "check" target resolved to a
+  // non-existent directory, was skipped in silence, and the run looked fine.
+  // Alone, it made the documented no-path form — `bunx leonui check` — scan
+  // nothing at all and exit 0.
+  const dir = mkdtempSync(join(tmpdir(), 'uicheck-'));
+  try {
+    writeFileSync(join(dir, 'bad.html'), `<div ui:stak gap="99"></div>\n`);
+
+    const noPath = run(['check'], dir);
+    assert.equal(noPath.code, 1, 'the default target is the cwd, and this page has an error');
+    assert.match(noPath.all, /checked 1 file: 1 error/, 'it actually scanned the page');
+    assert.match(noPath.out, /bad\.html:1:6: error: unknown attribute "ui:stak"/);
+
+    // and the explicit form still means the same thing
+    const explicit = run(['check', '.'], dir);
+    assert.equal(explicit.code, 1);
+    assert.match(explicit.all, /checked 1 file: 1 error/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('cli: a path that does not exist is a usage error, not a clean pass', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'uicheck-'));
+  try {
+    writeFileSync(join(dir, 'ok.html'), `<div ui:stack gap="2"></div>\n`);
+
+    // A typo in a CI gate used to read as success: the missing target was
+    // skipped, the remaining files were clean, and the exit status was 0.
+    const missing = run(['check', 'pages/typo'], dir);
+    assert.equal(missing.code, 2, 'distinguishable from both a finding (1) and a pass (0)');
+    assert.match(missing.err, /no such file or directory: "pages\/typo"/);
+    assert.equal(missing.out, '', 'and it reports no findings, because it read nothing');
+
+    // one good path alongside one bad one is still a usage error, not a partial pass
+    const mixed = run(['check', 'ok.html', 'nope'], dir);
+    assert.equal(mixed.code, 2);
+    assert.match(mixed.err, /no such file or directory: "nope"/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('cli: a target that cannot be checked is a usage error, never a silent pass', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'uicheck-'));
+  try {
+    writeFileSync(join(dir, 'ok.html'), `<div ui:stack gap="2"></div>\n`);
+    writeFileSync(join(dir, 'README.md'), `# not html\n`);
+
+    // A named file that is not HTML used to be skipped in silence: `ui check
+    // README.md` printed "checked 0 files" and exited 0, which reads as a clean
+    // bill of health for README.md. Same false pass as a missing path.
+    const notHtml = run(['check', 'README.md'], dir);
+    assert.equal(notHtml.code, 2);
+    assert.match(notHtml.err, /not an HTML file: "README\.md"/);
+    assert.equal(notHtml.out, '', 'nothing was read, so nothing is reported');
+
+    // ...and so is finding nothing at all. A gate that goes green because it
+    // scanned no files goes green on the day the glob breaks.
+    const empty = mkdtempSync(join(tmpdir(), 'uicheck-empty-'));
+    try {
+      const nothing = run(['check'], empty);
+      assert.equal(nothing.code, 2);
+      assert.match(nothing.err, /no \.html files found in the current directory/);
+    } finally { rmSync(empty, { recursive: true, force: true }); }
+
+    // An empty path is not ".". `resolve('')` IS the cwd, so `ui check ""` used to
+    // scan the whole tree — a shell variable that expanded to nothing, most often.
+    const blank = run(['check', ''], dir);
+    assert.equal(blank.code, 2);
+    assert.match(blank.err, /empty path/);
+
+    // ...but a non-HTML file merely *sitting inside* a scanned directory is normal
+    // and stays ignored. Only a named one is an error.
+    const dirScan = run(['check', dir]);
+    assert.equal(dirScan.code, 0);
+    assert.match(dirScan.all, /checked 1 file: 0 errors, 0 warnings/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('cli: --json describes the findings it actually emitted', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'uicheck-'));
+  try {
+    writeFileSync(join(dir, 'a.html'), `<div class="a" class="b"></div><div ui:stak></div>\n`);
+    type Payload = { errors: number; warnings: number; suppressed: number; findings: Finding[] };
+
+    // One error and one warning. The counts are the verdict — the whole scan, the
+    // same numbers the human summary line prints — and `findings` is what was
+    // emitted. Those are different sets under `--quiet`, and the payload has to say
+    // so: it used to report `warnings: 1` beside a one-element findings array, an
+    // output that contradicted itself, which a machine-readable mode may not do.
+    const quiet = JSON.parse(run(['check', dir, '--json', '--quiet']).out) as Payload;
+    assert.equal(quiet.errors, 1);
+    assert.equal(quiet.warnings, 1, 'the verdict still counts the warning');
+    assert.equal(quiet.findings.length, 1, 'but only the error was emitted');
+    assert.equal(quiet.suppressed, 1, 'and the gap is named rather than left to arithmetic');
+    assert.equal(quiet.findings.length + quiet.suppressed, quiet.errors + quiet.warnings);
+
+    // and without --quiet nothing is hidden
+    const all = JSON.parse(run(['check', dir, '--json']).out) as Payload;
+    assert.equal(all.errors, 1);
+    assert.equal(all.warnings, 1);
+    assert.equal(all.findings.length, 2);
+    assert.equal(all.suppressed, 0);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 /* ================= the gallery ================= */

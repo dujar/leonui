@@ -406,9 +406,15 @@ t('css: light-dark() flips with prefers-color-scheme (emulated dark)', async () 
 
 t('css: cascade layers — app override beats ui.base', async () => {
   const p = await page('/pages/index.html');
-  // index.html defines #override-win { color: red !important } at app level
+  // index.html sets an unlayered #override-win colour at app level. Unlayered
+  // rules beat the layered ui.base, so this wins without !important — and it is
+  // an AA-passing red in both schemes rather than rgb(255, 0, 0), which measured
+  // 3.8:1 on the light background and was the one text node in the whole package
+  // that failed AA. Declared with `light-dark()`, so the expected value depends
+  // on the emulated scheme: pin it rather than inherit whatever the last test left.
+  await p.colorScheme('light');
   const c = await style(p, '#override-win', 'color');
-  assert.equal(c, 'rgb(255, 0, 0)', 'app-level override wins');
+  assert.equal(c, 'rgb(165, 24, 26)', 'app-level override wins');
   await p.close();
 });
 

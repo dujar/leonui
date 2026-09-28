@@ -13,6 +13,7 @@
     ['/docs/server-data.html', 'Server data'],
     ['/docs/overlays.html', 'Overlays & toasts'],
     ['/docs/theming.html', 'Theming'],
+    ['/docs/landing-patterns.html', 'Landing pages'],
     ['/docs/components.html', 'Components'],
     ['/docs/verbs-reference.html', 'Verb reference'],
   ];

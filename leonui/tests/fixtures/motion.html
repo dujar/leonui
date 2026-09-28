@@ -1,0 +1,46 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>motion fixture</title>
+<link rel="stylesheet" href="/src/ui.css">
+<style>
+  body { max-width: none; margin: 0; }
+  .pad { height: 1400px; }
+  .probe { height: 40px; background: var(--muted); }
+  /* The page's own transition, on an element that also reveals. A `transition`
+     shorthand resets every transition property on the element, so the reveal's
+     has to be handed back when the motion is over or this one is gone for good. */
+  .own-transition { transition: background-color .2s linear; }
+</style>
+</head>
+<body>
+  <!-- above the fold: these animate on load, no scrolling involved -->
+  <section id="m-load"    class="probe" ui:reveal trigger="load" from="up"></section>
+  <section id="m-stagger" class="probe" ui:reveal trigger="load" stagger="3"></section>
+  <section id="m-own"     class="probe own-transition" ui:reveal trigger="load"></section>
+
+  <!-- A list. `stagger` on a row is a *step*, and a step is meaningless without a
+       position — so the delay has to come from the row's index, not the attribute.
+       Three rows at stagger=1 are therefore 0ms / 80ms / 160ms apart, not three
+       rows all at 80ms. -->
+  <div ui:state="cards: [{ id: 'a' }, { id: 'b' }, { id: 'c' }]">
+    <article class="probe m-card" ui:each="c in cards" ui:key="id" ui:reveal stagger="1"></article>
+  </div>
+
+  <!-- the spacer puts everything below out of the viewport at scrollY = 0 -->
+  <div class="pad"></div>
+
+  <section id="m-scroll" class="probe" ui:reveal></section>
+  <section id="m-up"     class="probe" ui:reveal from="up"></section>
+  <section id="m-down"   class="probe" ui:reveal from="down"></section>
+  <section id="m-left"   class="probe" ui:reveal from="left"></section>
+  <section id="m-right"  class="probe" ui:reveal from="right"></section>
+  <section id="m-zoom"   class="probe" ui:reveal from="zoom"></section>
+  <section id="m-fade"   class="probe" ui:reveal from="fade"></section>
+  <section id="m-late"   class="probe" ui:reveal stagger="2"></section>
+
+  <!-- Pinned to the viewport. The observer's negative bottom margin is a band an
+       element has to be able to *leave*, and a fixed bar never moves relative to
+       the viewport at all — it starts inside the band and stays there. Intersection
+       alone would leave it armed and invisible for the life of the page. -->
+  <div id="m-fixed" ui:reveal style="position: fixed; inset: auto 0 0 0; padding: 8px; background: var(--muted);">pinned</div>
+<script type="module" src="/dist/leonui.js"></script>
+</body></html>

@@ -14,7 +14,12 @@
     --bg: light-dark(#faf9f6, #14161a);
     --card: light-dark(#ffffff, #1e2126);
     --ink: light-dark(#1c1e21, #e8eaed);
-    --muted: light-dark(#6b7280, #9aa0a6);
+    /* Dark enough to clear 4.5:1 on the *lightest* surface it is used on, which
+       is not `--card` but `.band-alt` (an `--ink` tint over `--bg`, ~#f1f0ed).
+       At the old #6b7280 the muted text on an alt band measured 4.25:1 — a
+       failure that only shows up on the tinted bands, so it survives review on
+       a plain white page. */
+    --muted: light-dark(#626b78, #9aa0a6);
     --line: light-dark(#e5e2da, #2a2e35);
     --danger: light-dark(#b3261e, #f2b8b5);
     --warn: light-dark(#9a6b00, #f2d06b);
@@ -61,16 +66,28 @@
   .ui-t-muted { color: var(--muted); font-size: var(--ui-text-2); }
   .ui-t-strong { font-weight: 600; }
   .ui-t-code { font-family: var(--mono); font-size: var(--ui-text-2); background: color-mix(in srgb, var(--ink) 7%, transparent); border-radius: var(--r-sm); padding: 0 var(--ui-gap-2); }
+  /* Both halves of a badge are mixed into tokens rather than left translucent.
+     A translucent tint takes its contrast from whatever is behind it, so the
+     same brand badge measures 4.4:1 on a plain card and 3.7:1 over the hero's
+     brand-tinted gradient — a ratio that depends on the page cannot be tested,
+     and that one was wrong on the page that mattered. Mixed into `--card` the
+     ratio is a property of the badge alone.
+
+     The text is the accent moved TOWARD the foreground, not the accent itself:
+     `var(--brand)` text on a `brand`-tinted background is the one combination
+     that cannot pass, because the two colours are the same hue by construction.
+     Moving the accent 22% toward `--ink` darkens it in light mode and lightens
+     it in dark mode, from a single rule. */
   .ui-badge {
     display: inline-flex; align-items: center; gap: var(--ui-gap-2);
     font-size: var(--ui-text-1); font-weight: 600; line-height: 1;
     padding: var(--ui-gap-2) var(--ui-gap-3); border-radius: 999px;
-    background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--ink);
+    background: color-mix(in srgb, var(--ink) 8%, var(--card)); color: var(--ink);
   }
-  .ui-b-brand { background: color-mix(in srgb, var(--brand) 18%, transparent); color: var(--brand); }
-  .ui-b-danger { background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger); }
-  .ui-b-warn { background: color-mix(in srgb, var(--warn) 22%, transparent); color: var(--warn); }
-  .ui-b-success { background: color-mix(in srgb, var(--success) 18%, transparent); color: var(--success); }
+  .ui-b-brand { background: color-mix(in srgb, var(--brand) 12%, var(--card)); color: color-mix(in srgb, var(--brand) 78%, var(--ink)); }
+  .ui-b-danger { background: color-mix(in srgb, var(--danger) 12%, var(--card)); color: color-mix(in srgb, var(--danger) 78%, var(--ink)); }
+  .ui-b-warn { background: color-mix(in srgb, var(--warn) 12%, var(--card)); color: color-mix(in srgb, var(--warn) 78%, var(--ink)); }
+  .ui-b-success { background: color-mix(in srgb, var(--success) 12%, var(--card)); color: color-mix(in srgb, var(--success) 78%, var(--ink)); }
   .ui-icon { width: 1.1em; height: 1.1em; display: inline-block; vertical-align: -.18em; }
   .ui-img { width: 100%; object-fit: cover; border-radius: var(--r); background: color-mix(in srgb, var(--ink) 6%, transparent); display: block; }
   .ui-img-error::after {
@@ -167,6 +184,46 @@
   .ui-table td { border-bottom: 1px solid var(--line); padding: var(--ui-gap-3); }
   .ui-state { color: var(--muted); font-size: var(--ui-text-2); padding: var(--ui-gap-4) 0; }
   .ui-state-error { color: var(--danger); }
+
+  /* ---- motion ---- */
+  /* Entrance reveal (`ui:reveal`). Two guards, and both matter:
+   *
+   *   - the hidden state is scoped to `.ui-reveal-ready` on <html>, a class only
+   *     the runtime sets. With JS off, blocked, or 404'd, nothing is ever hidden —
+   *     a hero that stays invisible because a bundle failed is the one failure an
+   *     entrance animation must not be able to cause.
+   *   - `prefers-reduced-motion: no-preference` wraps the whole block, so a reader
+   *     who asked for less motion is never hidden and never transitions. They get
+   *     the page, which is the point.
+   *
+   * `--ui-reveal-delay` is the stagger; the runtime sets it from `stagger`.
+   *
+   * The transition lives on `.ui-reveal-in`, NOT on the armed state. A transition
+   * runs when the *new* computed style declares one, so putting it on the armed
+   * rule makes arming animate too — every reveal element slides and fades OUT on
+   * load before it ever slides in. Armed is instant; only the reveal moves. */
+  @media (prefers-reduced-motion: no-preference) {
+    .ui-reveal-ready [ui\:reveal]:not(.ui-reveal-in) { opacity: 0; }
+    .ui-reveal-ready [ui\:reveal][data-reveal-from="up"]:not(.ui-reveal-in) { translate: 0 18px; }
+    .ui-reveal-ready [ui\:reveal][data-reveal-from="down"]:not(.ui-reveal-in) { translate: 0 -18px; }
+    .ui-reveal-ready [ui\:reveal][data-reveal-from="left"]:not(.ui-reveal-in) { translate: -18px 0; }
+    .ui-reveal-ready [ui\:reveal][data-reveal-from="right"]:not(.ui-reveal-in) { translate: 18px 0; }
+    .ui-reveal-ready [ui\:reveal][data-reveal-from="zoom"]:not(.ui-reveal-in) { scale: .94; }
+    .ui-reveal-ready [ui\:reveal].ui-reveal-in { opacity: 1; }
+    /* ...and it is scoped to the *unsettled* revealed state, which is the whole
+     * point of `.ui-reveal-settled`. A `transition` shorthand resets every
+     * transition property on the element, so a `.cta` that declares
+     * `transition: background .2s` stopped transitioning its background the moment
+     * it revealed — and kept not transitioning, because the rule kept matching.
+     * That is a real regression on exactly the pages this feature is for. The
+     * runtime adds `.ui-reveal-settled` when the motion is over; this rule stops
+     * matching and the page's own transitions come back. Nothing moves, because by
+     * then every property is already at its final value. */
+    .ui-reveal-ready [ui\:reveal].ui-reveal-in:not(.ui-reveal-settled) {
+      transition: opacity .5s ease-out, translate .5s ease-out, scale .5s ease-out;
+      transition-delay: var(--ui-reveal-delay, 0ms);
+    }
+  }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; }

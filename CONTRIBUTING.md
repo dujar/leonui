@@ -24,7 +24,11 @@ The short version:
    `leonui/tests/` for the patterns (assertions on DOM, state, *and*
    `window.__ui.warns`, our no-silent-failure contract).
 4. **CI is the first reviewer.** Typecheck (strict) and the full suite run on
-   every PR. If it's red, fix before requesting review.
+   every PR. If it's red, fix before requesting review. (Caveat: the workflow's
+   steps have no `working-directory`, so they run at the repository root while
+   the package lives in `leonui/` — that check does not currently go green. Run
+   the dev loop from `leonui/` yourself in the meantime; see
+   [AGENTS.md](AGENTS.md).)
 
 ## What gets rejected (the slop list)
 

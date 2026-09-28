@@ -1,11 +1,11 @@
 /* fx.ts — events → closed effect-verb catalog */
 import type { Verb } from './types.ts';
-import { resolvePath, readPath, writeRef, setPath, scopes, warn } from './signals.ts';
+import { canQueryPopoverOpen, resolvePath, readPath, writeRef, setPath, scopes, warn } from './signals.ts';
 import { safeEval } from './parser.ts';
 import { fetchCell } from './state.ts';
 import { VERB_NAMES } from './vocab.ts';
 
-const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms));
 
 /* ---------- the closed catalog ----------
  * The list itself lives in vocab.ts — the one table the runtime and the
@@ -36,7 +36,11 @@ export function parseVerb(src: string): Verb | null {
     else if (name === 'nav') v.sel = args.startsWith("'") ? String(safeEval(args, null)) : args;
     else if (name === 'refetch') v.target = args;
     else if (name === 'focus' || name === 'reset') v.sel = args.startsWith("'") ? String(safeEval(args, null)) : args;
-    else if (name === 'prompt') {
+    else if (name === 'dismiss') {
+      // no selector: it closes the overlay the element is *inside*, which is the
+      // only thing a menu item or a dialog button ever means by "close this"
+      if (args) throw new Error(`dismiss takes no arguments, found "${args}"`);
+    } else if (name === 'prompt') {
       const mm = args.match(/^([\s\S]+?)\s+into\s+([\w.]+)$/);
       if (!mm) throw new Error('ui: prompt needs "into <path>"');
       v.msg = mm[1]!; v.path = mm[2]!;
@@ -89,6 +93,39 @@ function doNav(sel: string): void {
   };
   if (document.startViewTransition) document.startViewTransition(go);
   else go();
+}
+
+/** Close the overlay this element sits inside — the nearest open popover or
+ * `<dialog>`, walking outward.
+ *
+ * The gap this fills is a platform one. A popover can only be *closed* from a
+ * button: `popovertargetaction="hide"` and `command="hide-popover"` both apply to
+ * `<button>`/`<input type=button>` and to nothing else. So the single most common
+ * popover on the web — a mobile menu made of `<a href="#section">` links — has no
+ * way to close itself when a destination is picked, and stays open over the page
+ * the reader just asked for. Every author works around it with a click handler,
+ * which is exactly the kind of thing the verb catalog exists to hold instead.
+ *
+ * A miss is named rather than silent, for the same reason `focus` names one: an
+ * element that was never inside an overlay looks like a broken button.
+ *
+ * The walk *continues* past a `<dialog>` that is already closed, and past a
+ * popover that is not open. Stopping at any element merely because it is the
+ * right kind of thing would swallow the walk: an element inside a closed dialog
+ * that itself sits inside an open popover would close nothing and warn nothing,
+ * which is the one outcome this verb promises never to produce. */
+function doDismiss(el: Element): void {
+  for (let n: Element | null = el; n; n = n.parentElement) {
+    if (n instanceof HTMLDialogElement) {
+      if (n.open) { n.close(); return; }
+      continue;
+    }
+    if (canQueryPopoverOpen() && n.matches(':popover-open')) {
+      (n as HTMLElement).hidePopover();
+      return;
+    }
+  }
+  warn(`ui: dismiss found no open popover or <dialog> around <${el.tagName.toLowerCase()}> — nothing to close`);
 }
 
 function doRefetch(name: string, el: Element): void {
@@ -152,6 +189,74 @@ async function doCall(v: Verb, el: Element): Promise<boolean> {
   }
 }
 
+/** Mutable state one run of a verb list carries between verbs. Only the response
+ * gates read it, and only `call` writes it. */
+interface FxRun { failed: boolean }
+
+/** A handler returns `false` to abandon the rest of the list — only `confirm`
+ * does, and only when the reader declines. */
+type Stop = false | void;
+type Handler = (v: Verb, el: Element, run: FxRun) => Stop | Promise<Stop>;
+
+/** One handler per name in `VERB_NAMES`, and `vocab.test.ts` pins the two sets to
+ * each other in both directions.
+ *
+ * This is a table rather than an if-chain for the same reason `ENHANCERS` is: a
+ * verb added to the catalog with no implementation here would otherwise be a
+ * silent no-op — it parses, `ui check` accepts it, the generated skill table
+ * documents it, and firing the event does nothing at all. That is the exact
+ * failure this whole vocabulary exists to prevent, and an if-chain cannot be
+ * introspected to prove it has not happened. */
+export const VERB_HANDLERS: Record<string, Handler> = {
+  set: (v, el) => { setPath(v.path!, safeEval(v.expr!, el), el); },
+  toggle: (v, el) => { setPath(v.path!, !readPath(v.path!, el), el); },
+  call: async (v, el, run) => {
+    // the inner catch is deliberate: a `call` that throws has still *failed*, and
+    // an `onfail` gate after it must run. Letting the outer catch handle it would
+    // warn identically and leave the gate reading a stale outcome.
+    try { run.failed = !(await doCall(v, el)); }
+    catch (e) { warn((e as Error).message); run.failed = true; }
+  },
+  toast: (v, el) => { toast(safeEval(v.expr!, el), false); },
+  nav: v => { doNav(v.sel!); },
+  refetch: (v, el) => { doRefetch(v.target!, el); },
+  focus: v => {
+    const t = document.querySelector(v.sel!) as HTMLElement | null;
+    // `nav` has always named a missing target; focus did not, so a typo'd
+    // selector looked like a control that simply refused to take focus
+    if (!t) warn('ui: focus target not found: ' + v.sel);
+    else t.focus();
+  },
+  reset: v => {
+    const f = document.querySelector(v.sel!);
+    // two ways reset did nothing, both silent: the selector matched nothing,
+    // or it matched something that is not a form, so `.reset()` is not there
+    // to call. `nav`'s wording, then, for the first; a second line for the second.
+    if (!f) warn('ui: reset target not found: ' + v.sel);
+    else if (f.tagName !== 'FORM') warn(`ui: reset target is not a <form>: ${v.sel} (found <${f.tagName.toLowerCase()}>)`);
+    else {
+      (f as HTMLFormElement).reset();
+      for (const c of f.querySelectorAll('[ui\\:model]')) {
+        const value = modelValue(c);
+        if (value !== null) setPath(c.getAttribute('ui:model')!, value, c);
+      }
+    }
+  },
+  dismiss: (_v, el) => { doDismiss(el); },
+  delay: v => sleep(v.ms!),
+  prompt: (v, el) => {
+    const val = window.prompt(safeEval(v.msg!, el) as string);
+    if (val !== null) setPath(v.path!, val, el);
+  },
+  confirm: (v, el) => (window.confirm(safeEval(v.expr!, el) as string) ? undefined : false),
+
+  /* response gates — the catalog lists them beside the verbs but they are not
+   * verbs (naming.md §6): they read the last call's outcome rather than acting,
+   * and the list always continues past them, so a gate never returns `false`. */
+  onfail: (v, el, run) => { if (run.failed && v.expr) toast(safeEval(v.expr, el), true); },
+  onsuccess: (v, el, run) => { if (!run.failed && v.expr) toast(safeEval(v.expr, el), false); },
+};
+
 export function attachFx(el: Element): void {
   const spec = el.getAttribute('ui:fx')!;
   const ci = spec.indexOf(':');
@@ -159,44 +264,17 @@ export function attachFx(el: Element): void {
   const evName = spec.slice(0, ci).trim();
   const verbs = spec.slice(ci + 1).split(';').map(parseVerb).filter((v): v is Verb => !!v);
   const go = async (): Promise<void> => {
-    let failed = false;
+    const run: FxRun = { failed: false };
     for (const v of verbs) {
-      if (v.name === 'onfail' || v.name === 'onsuccess') {
-        // response gates: the payload runs only when the last call's outcome matches;
-        // the list itself always continues (onfail/onsuccess compose as pairs)
-        const match = v.name === 'onfail' ? failed : !failed;
-        if (match && v.expr) {
-          try { toast(safeEval(v.expr, el), v.name === 'onfail'); }
-          catch (e) { warn((e as Error).message); } // a bad gate payload must not abort the list
-        }
+      // hasOwn, not `in`: a verb named `constructor` must not resolve to
+      // Object.prototype's
+      const handler = Object.hasOwn(VERB_HANDLERS, v.name) ? VERB_HANDLERS[v.name] : undefined;
+      if (!handler) {
+        warn(`ui: verb "${v.name}" is in the catalog but has no implementation — no effect`);
         continue;
       }
       try {
-        if (v.name === 'set') setPath(v.path!, safeEval(v.expr!, el), el);
-        else if (v.name === 'toggle') setPath(v.path!, !readPath(v.path!, el), el);
-        else if (v.name === 'call') {
-          try { failed = !(await doCall(v, el)); }
-          catch (e) { warn((e as Error).message); failed = true; }
-        } else if (v.name === 'toast') toast(safeEval(v.expr!, el), false);
-        else if (v.name === 'nav') doNav(v.sel!);
-        else if (v.name === 'refetch') doRefetch(v.target!, el);
-        else if (v.name === 'focus') (document.querySelector(v.sel!) as HTMLElement | null)?.focus();
-        else if (v.name === 'reset') {
-          const f = document.querySelector(v.sel!);
-          if (f && f.tagName === 'FORM') {
-            (f as HTMLFormElement).reset();
-            for (const c of f.querySelectorAll('[ui\\:model]')) {
-              const value = modelValue(c);
-              if (value !== null) setPath(c.getAttribute('ui:model')!, value, c);
-            }
-          }
-        } else if (v.name === 'delay') await sleep(v.ms!);
-        else if (v.name === 'prompt') {
-          const val = window.prompt(safeEval(v.msg!, el) as string);
-          if (val !== null) setPath(v.path!, val, el);
-        } else if (v.name === 'confirm') {
-          if (!window.confirm(safeEval(v.expr!, el) as string)) return;
-        }
+        if ((await handler(v, el, run)) === false) return;
       } catch (e) { warn((e as Error).message); }
     }
   };
