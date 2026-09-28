@@ -3,7 +3,7 @@
 All notable changes to leonui are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/); versioning follows semver.
 
-## [Unreleased]
+## [0.4.0] — 2026-09-28
 
 A third pass closes the two remaining gaps in the same contract — the vocabulary was
 enforced everywhere except where an attribute only means something next to another one,
