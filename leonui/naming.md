@@ -176,8 +176,8 @@ revisit only pre-1.0 with a migration benchmark.
 The vocabulary must stay teachable in-context. The budget is measured on the **generated
 grammar table** in `skill/SKILL.md` — the part an agent has to hold *exactly*, and the only
 part that grows every time the vocabulary does — and it is **≤ ~2,000 tokens**. Today it is
-~510 tokens: 2,046 characters across the three `BEGIN/END GENERATED` regions, 1,839 of them
-the enhancers table. `skill/grammar.json` is the same vocabulary in full, at ~1,350.
+~530 tokens: 2,111 characters across the three `BEGIN/END GENERATED` regions, 1,894 of them
+the enhancers table. `skill/grammar.json` is the same vocabulary in full, at ~1,370.
 
 The prose around the table is deliberately *not* budgeted. Gotchas, examples and failure
 modes are read once and skimmed thereafter, and they are the part that earns its length;

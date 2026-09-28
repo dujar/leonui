@@ -61,7 +61,7 @@ step and no room for hallucinated syntax.
 - **The grammar is the product.** Five attribute families cover declare / react / repeat /
   act / compose. The whole vocabulary is designed to fit in an agent's context window —
   [`naming.md`](naming.md) caps the generated grammar table at a ~2,000-token budget (it is
-  ~510 today) and every new name must state its token cost.
+  ~530 today) and every new name must state its token cost.
 - **Closed, not open.** Expressions are a whitelist (never `eval`), effect verbs are a
   closed catalog, unknown verbs and attributes are *named* warnings instead of silent
   no-ops. A page either behaves as written or tells you exactly which attribute lied.
