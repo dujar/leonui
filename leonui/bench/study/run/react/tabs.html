@@ -1,0 +1,48 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Plans</title></head>
+<body>
+  <div id="root"></div>
+  <script src="/vendor/react.bundle.js"></script>
+  <script src="/vendor/babel.min.js"></script>
+  <script type="text/babel" data-presets="react">
+    const { useState } = React;
+
+    const TABS = [
+      { id: 'Overview', text: 'The starter plan includes every core feature.' },
+      { id: 'Details', text: 'Billing is monthly and you can cancel anytime.' },
+      { id: 'Pricing', text: 'The starter plan costs nine dollars per month.' },
+    ];
+
+    function App() {
+      const [active, setActive] = useState('Overview');
+      return (
+        <div>
+          <h1>Plans</h1>
+          <div role="tablist">
+            {TABS.map(t => (
+              <button
+                key={t.id}
+                type="button"
+                role="tab"
+                aria-selected={active === t.id ? 'true' : 'false'}
+                onClick={() => setActive(t.id)}
+              >
+                {t.id}
+              </button>
+            ))}
+          </div>
+          {TABS.map(t => (
+            <div
+              key={t.id}
+              role="tabpanel"
+              style={{ display: active === t.id ? '' : 'none' }}
+            >
+              {t.text}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body></html>

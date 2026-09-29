@@ -1,0 +1,1009 @@
+{
+  "dir": "run",
+  "results": [
+    {
+      "framework": "leonui",
+      "task": "todo",
+      "file": "bench/study/run/leonui/todo.html",
+      "pass": false,
+      "steps": [
+        {
+          "name": "initial state",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "status reads 0 left",
+              "pass": true,
+              "detail": "0 left"
+            },
+            {
+              "name": "no rows yet",
+              "pass": true,
+              "detail": "rows present"
+            }
+          ]
+        },
+        {
+          "name": "empty add does nothing",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "status still 0 left",
+              "pass": true,
+              "detail": "0 left"
+            },
+            {
+              "name": "still no rows",
+              "pass": true,
+              "detail": "a row appeared"
+            }
+          ]
+        },
+        {
+          "name": "add alpha",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "alpha row exists",
+              "pass": true,
+              "detail": "row missing"
+            },
+            {
+              "name": "status 1 left",
+              "pass": true,
+              "detail": "1 left"
+            },
+            {
+              "name": "alpha not struck",
+              "pass": true,
+              "detail": "title already struck"
+            },
+            {
+              "name": "input cleared",
+              "pass": true,
+              "detail": "value="
+            }
+          ]
+        },
+        {
+          "name": "add beta",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "beta row exists",
+              "pass": true,
+              "detail": "row missing"
+            },
+            {
+              "name": "status 2 left",
+              "pass": true,
+              "detail": "2 left"
+            }
+          ]
+        },
+        {
+          "name": "add gamma",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "gamma row exists",
+              "pass": true,
+              "detail": "row missing"
+            },
+            {
+              "name": "status 3 left",
+              "pass": true,
+              "detail": "3 left"
+            }
+          ]
+        },
+        {
+          "name": "tick alpha done",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "alpha struck",
+              "pass": true,
+              "detail": "no line-through"
+            },
+            {
+              "name": "status 2 left",
+              "pass": true,
+              "detail": "2 left"
+            },
+            {
+              "name": "beta not struck",
+              "pass": true,
+              "detail": "beta struck too"
+            },
+            {
+              "name": "gamma not struck",
+              "pass": true,
+              "detail": "gamma struck too"
+            }
+          ]
+        },
+        {
+          "name": "untick alpha",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "alpha unstruck",
+              "pass": true,
+              "detail": "still struck"
+            },
+            {
+              "name": "status 3 left",
+              "pass": true,
+              "detail": "3 left"
+            }
+          ]
+        },
+        {
+          "name": "tick alpha again",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "alpha struck",
+              "pass": true,
+              "detail": "no line-through"
+            },
+            {
+              "name": "status 2 left",
+              "pass": true,
+              "detail": "2 left"
+            }
+          ]
+        },
+        {
+          "name": "remove beta (not done)",
+          "pass": false,
+          "asserts": [
+            {
+              "name": "beta row gone",
+              "pass": true,
+              "detail": "row still present"
+            },
+            {
+              "name": "alpha still there",
+              "pass": true,
+              "detail": "alpha vanished"
+            },
+            {
+              "name": "gamma still there",
+              "pass": true,
+              "detail": "gamma vanished"
+            },
+            {
+              "name": "alpha still struck",
+              "pass": false,
+              "detail": "line-through lost"
+            },
+            {
+              "name": "status 1 left",
+              "pass": false,
+              "detail": "2 left"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "framework": "leonui",
+      "task": "filter",
+      "file": "bench/study/run/leonui/filter.html",
+      "pass": true,
+      "steps": [
+        {
+          "name": "initial: all 10 visible",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "all 10 visible",
+              "pass": true,
+              "detail": "[\"Aluminum Tee\",\"Bamboo Desk Mat\",\"Copper Kettle\",\"Desk Cable Tray\",\"Ergo Footrest\",\"Felt Organizer\",\"Gel Wrist Rest\",\"Hub Adapter Pro\",\"Ink Roller Pen\",\"Jute Storage Bin\"]"
+            }
+          ]
+        },
+        {
+          "name": "type desk",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "exactly the 2 desk products visible",
+              "pass": true,
+              "detail": "[\"Bamboo Desk Mat\",\"Desk Cable Tray\"]"
+            }
+          ]
+        },
+        {
+          "name": "type DESK (case-insensitive)",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "same 2 products visible",
+              "pass": true,
+              "detail": "[\"Bamboo Desk Mat\",\"Desk Cable Tray\"]"
+            }
+          ]
+        },
+        {
+          "name": "type zzz (no matches)",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "nothing visible",
+              "pass": true,
+              "detail": "[]"
+            }
+          ]
+        },
+        {
+          "name": "type Ergo",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "only Ergo Footrest visible",
+              "pass": true,
+              "detail": "[\"Ergo Footrest\"]"
+            }
+          ]
+        },
+        {
+          "name": "clear query",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "all 10 visible again",
+              "pass": true,
+              "detail": "[\"Aluminum Tee\",\"Bamboo Desk Mat\",\"Copper Kettle\",\"Desk Cable Tray\",\"Ergo Footrest\",\"Felt Organizer\",\"Gel Wrist Rest\",\"Hub Adapter Pro\",\"Ink Roller Pen\",\"Jute Storage Bin\"]"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "framework": "leonui",
+      "task": "form",
+      "file": "bench/study/run/leonui/form.html",
+      "pass": false,
+      "steps": [
+        {
+          "name": "empty submit shows required errors",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "name error shown",
+              "pass": true,
+              "detail": "missing"
+            },
+            {
+              "name": "email error shown",
+              "pass": true,
+              "detail": "missing"
+            },
+            {
+              "name": "no age error",
+              "pass": true,
+              "detail": "age error shown for empty age"
+            },
+            {
+              "name": "no welcome yet",
+              "pass": true,
+              "detail": "welcome shown"
+            }
+          ]
+        },
+        {
+          "name": "invalid email",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "email error shown",
+              "pass": true,
+              "detail": "missing"
+            },
+            {
+              "name": "name error gone",
+              "pass": true,
+              "detail": "name error persisted"
+            },
+            {
+              "name": "no welcome yet",
+              "pass": true,
+              "detail": "welcome shown"
+            }
+          ]
+        },
+        {
+          "name": "valid submit",
+          "pass": false,
+          "asserts": [
+            {
+              "name": "welcome shown",
+              "pass": false,
+              "detail": "missing"
+            },
+            {
+              "name": "no name error",
+              "pass": true,
+              "detail": "shown"
+            },
+            {
+              "name": "no email error",
+              "pass": true,
+              "detail": "shown"
+            },
+            {
+              "name": "no age error",
+              "pass": true,
+              "detail": "shown"
+            }
+          ]
+        },
+        {
+          "name": "age 300 invalid",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "age error shown",
+              "pass": true,
+              "detail": "missing"
+            }
+          ]
+        },
+        {
+          "name": "age abc invalid",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "age error shown",
+              "pass": true,
+              "detail": "missing"
+            }
+          ]
+        },
+        {
+          "name": "age 12.5 invalid",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "age error shown",
+              "pass": true,
+              "detail": "missing"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "framework": "leonui",
+      "task": "tabs",
+      "file": "bench/study/run/leonui/tabs.html",
+      "pass": true,
+      "steps": [
+        {
+          "name": "overview active on load",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "overview panel visible",
+              "pass": true,
+              "detail": "not visible"
+            },
+            {
+              "name": "details panel hidden",
+              "pass": true,
+              "detail": "visible"
+            },
+            {
+              "name": "pricing panel hidden",
+              "pass": true,
+              "detail": "visible"
+            },
+            {
+              "name": "overview aria-selected true",
+              "pass": true,
+              "detail": "true"
+            },
+            {
+              "name": "details aria-selected false",
+              "pass": true,
+              "detail": "false"
+            },
+            {
+              "name": "pricing aria-selected false",
+              "pass": true,
+              "detail": "false"
+            }
+          ]
+        },
+        {
+          "name": "click Details",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "details panel visible",
+              "pass": true,
+              "detail": "not visible"
+            },
+            {
+              "name": "overview panel hidden",
+              "pass": true,
+              "detail": "visible"
+            },
+            {
+              "name": "pricing panel hidden",
+              "pass": true,
+              "detail": "visible"
+            },
+            {
+              "name": "details aria-selected true",
+              "pass": true,
+              "detail": "true"
+            },
+            {
+              "name": "overview aria-selected false",
+              "pass": true,
+              "detail": "false"
+            }
+          ]
+        },
+        {
+          "name": "click Pricing",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "pricing panel visible",
+              "pass": true,
+              "detail": "not visible"
+            },
+            {
+              "name": "details panel hidden",
+              "pass": true,
+              "detail": "visible"
+            },
+            {
+              "name": "pricing aria-selected true",
+              "pass": true,
+              "detail": "true"
+            },
+            {
+              "name": "details aria-selected false",
+              "pass": true,
+              "detail": "false"
+            }
+          ]
+        },
+        {
+          "name": "click Overview",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "overview panel visible",
+              "pass": true,
+              "detail": "not visible"
+            },
+            {
+              "name": "pricing panel hidden",
+              "pass": true,
+              "detail": "visible"
+            },
+            {
+              "name": "overview aria-selected true",
+              "pass": true,
+              "detail": "true"
+            },
+            {
+              "name": "pricing aria-selected false",
+              "pass": true,
+              "detail": "false"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "framework": "react",
+      "task": "todo",
+      "file": "bench/study/run/react/todo.html",
+      "pass": true,
+      "steps": [
+        {
+          "name": "initial state",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "status reads 0 left",
+              "pass": true,
+              "detail": "0 left"
+            },
+            {
+              "name": "no rows yet",
+              "pass": true,
+              "detail": "rows present"
+            }
+          ]
+        },
+        {
+          "name": "empty add does nothing",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "status still 0 left",
+              "pass": true,
+              "detail": "0 left"
+            },
+            {
+              "name": "still no rows",
+              "pass": true,
+              "detail": "a row appeared"
+            }
+          ]
+        },
+        {
+          "name": "add alpha",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "alpha row exists",
+              "pass": true,
+              "detail": "row missing"
+            },
+            {
+              "name": "status 1 left",
+              "pass": true,
+              "detail": "1 left"
+            },
+            {
+              "name": "alpha not struck",
+              "pass": true,
+              "detail": "title already struck"
+            },
+            {
+              "name": "input cleared",
+              "pass": true,
+              "detail": "value="
+            }
+          ]
+        },
+        {
+          "name": "add beta",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "beta row exists",
+              "pass": true,
+              "detail": "row missing"
+            },
+            {
+              "name": "status 2 left",
+              "pass": true,
+              "detail": "2 left"
+            }
+          ]
+        },
+        {
+          "name": "add gamma",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "gamma row exists",
+              "pass": true,
+              "detail": "row missing"
+            },
+            {
+              "name": "status 3 left",
+              "pass": true,
+              "detail": "3 left"
+            }
+          ]
+        },
+        {
+          "name": "tick alpha done",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "alpha struck",
+              "pass": true,
+              "detail": "no line-through"
+            },
+            {
+              "name": "status 2 left",
+              "pass": true,
+              "detail": "2 left"
+            },
+            {
+              "name": "beta not struck",
+              "pass": true,
+              "detail": "beta struck too"
+            },
+            {
+              "name": "gamma not struck",
+              "pass": true,
+              "detail": "gamma struck too"
+            }
+          ]
+        },
+        {
+          "name": "untick alpha",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "alpha unstruck",
+              "pass": true,
+              "detail": "still struck"
+            },
+            {
+              "name": "status 3 left",
+              "pass": true,
+              "detail": "3 left"
+            }
+          ]
+        },
+        {
+          "name": "tick alpha again",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "alpha struck",
+              "pass": true,
+              "detail": "no line-through"
+            },
+            {
+              "name": "status 2 left",
+              "pass": true,
+              "detail": "2 left"
+            }
+          ]
+        },
+        {
+          "name": "remove beta (not done)",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "beta row gone",
+              "pass": true,
+              "detail": "row still present"
+            },
+            {
+              "name": "alpha still there",
+              "pass": true,
+              "detail": "alpha vanished"
+            },
+            {
+              "name": "gamma still there",
+              "pass": true,
+              "detail": "gamma vanished"
+            },
+            {
+              "name": "alpha still struck",
+              "pass": true,
+              "detail": "line-through lost"
+            },
+            {
+              "name": "status 1 left",
+              "pass": true,
+              "detail": "1 left"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "framework": "react",
+      "task": "filter",
+      "file": "bench/study/run/react/filter.html",
+      "pass": true,
+      "steps": [
+        {
+          "name": "initial: all 10 visible",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "all 10 visible",
+              "pass": true,
+              "detail": "[\"Aluminum Tee\",\"Bamboo Desk Mat\",\"Copper Kettle\",\"Desk Cable Tray\",\"Ergo Footrest\",\"Felt Organizer\",\"Gel Wrist Rest\",\"Hub Adapter Pro\",\"Ink Roller Pen\",\"Jute Storage Bin\"]"
+            }
+          ]
+        },
+        {
+          "name": "type desk",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "exactly the 2 desk products visible",
+              "pass": true,
+              "detail": "[\"Bamboo Desk Mat\",\"Desk Cable Tray\"]"
+            }
+          ]
+        },
+        {
+          "name": "type DESK (case-insensitive)",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "same 2 products visible",
+              "pass": true,
+              "detail": "[\"Bamboo Desk Mat\",\"Desk Cable Tray\"]"
+            }
+          ]
+        },
+        {
+          "name": "type zzz (no matches)",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "nothing visible",
+              "pass": true,
+              "detail": "[]"
+            }
+          ]
+        },
+        {
+          "name": "type Ergo",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "only Ergo Footrest visible",
+              "pass": true,
+              "detail": "[\"Ergo Footrest\"]"
+            }
+          ]
+        },
+        {
+          "name": "clear query",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "all 10 visible again",
+              "pass": true,
+              "detail": "[\"Aluminum Tee\",\"Bamboo Desk Mat\",\"Copper Kettle\",\"Desk Cable Tray\",\"Ergo Footrest\",\"Felt Organizer\",\"Gel Wrist Rest\",\"Hub Adapter Pro\",\"Ink Roller Pen\",\"Jute Storage Bin\"]"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "framework": "react",
+      "task": "form",
+      "file": "bench/study/run/react/form.html",
+      "pass": true,
+      "steps": [
+        {
+          "name": "empty submit shows required errors",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "name error shown",
+              "pass": true,
+              "detail": "missing"
+            },
+            {
+              "name": "email error shown",
+              "pass": true,
+              "detail": "missing"
+            },
+            {
+              "name": "no age error",
+              "pass": true,
+              "detail": "age error shown for empty age"
+            },
+            {
+              "name": "no welcome yet",
+              "pass": true,
+              "detail": "welcome shown"
+            }
+          ]
+        },
+        {
+          "name": "invalid email",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "email error shown",
+              "pass": true,
+              "detail": "missing"
+            },
+            {
+              "name": "name error gone",
+              "pass": true,
+              "detail": "name error persisted"
+            },
+            {
+              "name": "no welcome yet",
+              "pass": true,
+              "detail": "welcome shown"
+            }
+          ]
+        },
+        {
+          "name": "valid submit",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "welcome shown",
+              "pass": true,
+              "detail": "missing"
+            },
+            {
+              "name": "no name error",
+              "pass": true,
+              "detail": "shown"
+            },
+            {
+              "name": "no email error",
+              "pass": true,
+              "detail": "shown"
+            },
+            {
+              "name": "no age error",
+              "pass": true,
+              "detail": "shown"
+            }
+          ]
+        },
+        {
+          "name": "age 300 invalid",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "age error shown",
+              "pass": true,
+              "detail": "missing"
+            }
+          ]
+        },
+        {
+          "name": "age abc invalid",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "age error shown",
+              "pass": true,
+              "detail": "missing"
+            }
+          ]
+        },
+        {
+          "name": "age 12.5 invalid",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "age error shown",
+              "pass": true,
+              "detail": "missing"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "framework": "react",
+      "task": "tabs",
+      "file": "bench/study/run/react/tabs.html",
+      "pass": true,
+      "steps": [
+        {
+          "name": "overview active on load",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "overview panel visible",
+              "pass": true,
+              "detail": "not visible"
+            },
+            {
+              "name": "details panel hidden",
+              "pass": true,
+              "detail": "visible"
+            },
+            {
+              "name": "pricing panel hidden",
+              "pass": true,
+              "detail": "visible"
+            },
+            {
+              "name": "overview aria-selected true",
+              "pass": true,
+              "detail": "true"
+            },
+            {
+              "name": "details aria-selected false",
+              "pass": true,
+              "detail": "false"
+            },
+            {
+              "name": "pricing aria-selected false",
+              "pass": true,
+              "detail": "false"
+            }
+          ]
+        },
+        {
+          "name": "click Details",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "details panel visible",
+              "pass": true,
+              "detail": "not visible"
+            },
+            {
+              "name": "overview panel hidden",
+              "pass": true,
+              "detail": "visible"
+            },
+            {
+              "name": "pricing panel hidden",
+              "pass": true,
+              "detail": "visible"
+            },
+            {
+              "name": "details aria-selected true",
+              "pass": true,
+              "detail": "true"
+            },
+            {
+              "name": "overview aria-selected false",
+              "pass": true,
+              "detail": "false"
+            }
+          ]
+        },
+        {
+          "name": "click Pricing",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "pricing panel visible",
+              "pass": true,
+              "detail": "not visible"
+            },
+            {
+              "name": "details panel hidden",
+              "pass": true,
+              "detail": "visible"
+            },
+            {
+              "name": "pricing aria-selected true",
+              "pass": true,
+              "detail": "true"
+            },
+            {
+              "name": "details aria-selected false",
+              "pass": true,
+              "detail": "false"
+            }
+          ]
+        },
+        {
+          "name": "click Overview",
+          "pass": true,
+          "asserts": [
+            {
+              "name": "overview panel visible",
+              "pass": true,
+              "detail": "not visible"
+            },
+            {
+              "name": "pricing panel hidden",
+              "pass": true,
+              "detail": "visible"
+            },
+            {
+              "name": "overview aria-selected true",
+              "pass": true,
+              "detail": "true"
+            },
+            {
+              "name": "pricing aria-selected false",
+              "pass": true,
+              "detail": "false"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

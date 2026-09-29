@@ -1,0 +1,15 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>selftest form — leonui</title><link rel="stylesheet" href="/src/ui.css"></head>
+<body ui:state="name: ''; email: ''; age: ''; nameErr: ''; emailErr: ''; ageErr: ''; msg: ''">
+  <h1>Sign up</h1>
+  <form novalidate ui:fx="submit: set nameErr = name == '' ? 'Name is required' : ''; set emailErr = email != '' && contains(email, '@') && contains(email, '.') ? '' : 'Enter a valid email'; set ageErr = age == '' ? '' : !(age * 1 >= 1 && age * 1 <= 120) || contains(age, '.') ? 'Age must be 1-120' : ''; set msg = nameErr == '' && emailErr == '' && ageErr == '' ? 'Welcome, ' + name + '!' : ''">
+    <label>Name <input name="name" ui:model="name"></label>
+    <p ui:bind="text: nameErr" ui:bind-hidden="nameErr == ''"></p>
+    <label>Email <input name="email" ui:model="email"></label>
+    <p ui:bind="text: emailErr" ui:bind-hidden="emailErr == ''"></p>
+    <label>Age <input name="age" ui:model="age"></label>
+    <p ui:bind="text: ageErr" ui:bind-hidden="ageErr == ''"></p>
+    <button type="submit">Sign up</button>
+  </form>
+  <p ui:bind="text: msg" ui:bind-hidden="msg == ''"></p>
+  <script type="module" src="/dist/leonui.js"></script>
+</body></html>

@@ -13,3 +13,4 @@ bench/vendor/
 .zcode/
 .agent-workbench/
 .npmrc
+leonui/bench/study/vendor/

@@ -1,0 +1,48 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>selftest form — react</title></head>
+<body>
+  <div id="root"></div>
+  <script src="/vendor/react.bundle.js"></script>
+  <script src="/vendor/babel.min.js"></script>
+  <script type="text/babel" data-presets="react">
+    const { useState } = React;
+
+    function App() {
+      const [name, setName] = useState('');
+      const [email, setEmail] = useState('');
+      const [age, setAge] = useState('');
+      const [errs, setErrs] = useState({ name: '', email: '', age: '' });
+      const [welcome, setWelcome] = useState('');
+
+      const submit = e => {
+        e.preventDefault();
+        const next = { name: '', email: '', age: '' };
+        if (name === '') next.name = 'Name is required';
+        if (!(email !== '' && email.includes('@') && email.includes('.'))) next.email = 'Enter a valid email';
+        if (age !== '') {
+          const n = Number(age);
+          if (!Number.isInteger(n) || n < 1 || n > 120) next.age = 'Age must be 1-120';
+        }
+        setErrs(next);
+        setWelcome(next.name === '' && next.email === '' && next.age === '' ? 'Welcome, ' + name + '!' : '');
+      };
+
+      return (
+        <div>
+          <h1>Sign up</h1>
+          <form onSubmit={submit} noValidate>
+            <label>Name <input name="name" value={name} onChange={e => setName(e.target.value)} /></label>
+            {errs.name !== '' && <p>{errs.name}</p>}
+            <label>Email <input name="email" value={email} onChange={e => setEmail(e.target.value)} /></label>
+            {errs.email !== '' && <p>{errs.email}</p>}
+            <label>Age <input name="age" value={age} onChange={e => setAge(e.target.value)} /></label>
+            {errs.age !== '' && <p>{errs.age}</p>}
+            <button type="submit">Sign up</button>
+          </form>
+          {welcome !== '' && <p>{welcome}</p>}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body></html>

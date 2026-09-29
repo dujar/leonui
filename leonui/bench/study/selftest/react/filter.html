@@ -1,0 +1,28 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>selftest filter — react</title></head>
+<body>
+  <div id="root"></div>
+  <script src="/vendor/react.bundle.js"></script>
+  <script src="/vendor/babel.min.js"></script>
+  <script type="text/babel" data-presets="react">
+    const { useState } = React;
+    const PRODUCTS = ['Aluminum Tee', 'Bamboo Desk Mat', 'Copper Kettle', 'Desk Cable Tray', 'Ergo Footrest', 'Felt Organizer', 'Gel Wrist Rest', 'Hub Adapter Pro', 'Ink Roller Pen', 'Jute Storage Bin'];
+
+    function App() {
+      const [q, setQ] = useState('');
+      const show = n => n.toLowerCase().includes(q.toLowerCase());
+      return (
+        <div>
+          <h1>Catalog</h1>
+          <input value={q} placeholder="Search products" onChange={e => setQ(e.target.value)} />
+          <ul>
+            {PRODUCTS.map(n => (
+              <li key={n} style={{ display: show(n) ? '' : 'none' }}>{n}</li>
+            ))}
+          </ul>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body></html>

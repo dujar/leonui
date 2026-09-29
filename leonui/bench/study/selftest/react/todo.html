@@ -1,0 +1,42 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>selftest todo — react</title></head>
+<body>
+  <div id="root"></div>
+  <script src="/vendor/react.bundle.js"></script>
+  <script src="/vendor/babel.min.js"></script>
+  <script type="text/babel" data-presets="react">
+    const { useState } = React;
+    let nextId = 1;
+
+    function App() {
+      const [items, setItems] = useState([]);
+      const [draft, setDraft] = useState('');
+      const left = items.filter(i => !i.done).length;
+
+      const add = () => {
+        if (draft === '') return;
+        setItems([{ id: nextId++, title: draft, done: false }, ...items]);
+        setDraft('');
+      };
+
+      return (
+        <div>
+          <h1>Todo</h1>
+          <p>{left} left</p>
+          <input value={draft} placeholder="What needs doing?" onChange={e => setDraft(e.target.value)} />
+          <button onClick={add}>Add</button>
+          <ul>
+            {items.map(it => (
+              <li key={it.id}>
+                <input type="checkbox" checked={it.done} onChange={() => setItems(items.map(x => x.id === it.id ? { ...x, done: !x.done } : x))} />
+                <span style={{ textDecoration: it.done ? 'line-through' : 'none' }}>{it.title}</span>
+                <button onClick={() => setItems(items.filter(x => x.id !== it.id))}>Remove</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body></html>
