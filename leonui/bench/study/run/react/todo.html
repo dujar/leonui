@@ -1,0 +1,55 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Todo</title></head>
+<body>
+  <div id="root"></div>
+  <script src="/vendor/react.bundle.js"></script>
+  <script src="/vendor/babel.min.js"></script>
+  <script type="text/babel" data-presets="react">
+    const { useState, useRef } = React;
+
+    let uid = 0;
+
+    function App() {
+      const [items, setItems] = useState([]);
+      const inputRef = useRef(null);
+
+      const add = () => {
+        const el = inputRef.current;
+        const raw = el ? el.value : '';
+        if (!raw) return;
+        uid += 1;
+        setItems(items.concat([{ id: uid, title: raw, done: false }]));
+        if (el) el.value = '';
+      };
+
+      const toggle = (id) => {
+        setItems(items.map(it => (it.id === id ? { ...it, done: !it.done } : it)));
+      };
+
+      const remove = (id) => {
+        setItems(items.filter(it => it.id !== id));
+      };
+
+      const left = items.filter(it => !it.done).length;
+
+      return (
+        <main>
+          <h1>Todo</h1>
+          <input ref={inputRef} placeholder="What needs doing?" />
+          <button onClick={add}>Add</button>
+          <p>{left} left</p>
+          <ul>
+            {items.map(it => (
+              <li key={it.id}>
+                <input type="checkbox" checked={it.done} onChange={() => toggle(it.id)} />
+                <span style={{ textDecoration: it.done ? 'line-through' : 'none' }}>{it.title}</span>
+                <button onClick={() => remove(it.id)}>Remove</button>
+              </li>
+            ))}
+          </ul>
+        </main>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body></html>

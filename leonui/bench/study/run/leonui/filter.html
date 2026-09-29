@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Catalog</title>
+  <link rel="stylesheet" href="/src/ui.css">
+</head>
+<body ui:state="query: ''; products: [ { name: 'Aluminum Tee', l: 'aluminum tee', u: 'ALUMINUM TEE' }, { name: 'Bamboo Desk Mat', l: 'bamboo desk mat', u: 'BAMBOO DESK MAT' }, { name: 'Copper Kettle', l: 'copper kettle', u: 'COPPER KETTLE' }, { name: 'Desk Cable Tray', l: 'desk cable tray', u: 'DESK CABLE TRAY' }, { name: 'Ergo Footrest', l: 'ergo footrest', u: 'ERGO FOOTREST' }, { name: 'Felt Organizer', l: 'felt organizer', u: 'FELT ORGANIZER' }, { name: 'Gel Wrist Rest', l: 'gel wrist rest', u: 'GEL WRIST REST' }, { name: 'Hub Adapter Pro', l: 'hub adapter pro', u: 'HUB ADAPTER PRO' }, { name: 'Ink Roller Pen', l: 'ink roller pen', u: 'INK ROLLER PEN' }, { name: 'Jute Storage Bin', l: 'jute storage bin', u: 'JUTE STORAGE BIN' } ]">
+  <h1>Catalog</h1>
+  <input id="search" type="text" ui:input ui:model="query" placeholder="Search products" aria-label="Search products">
+  <ul id="products">
+    <li ui:each="item in products" ui:key="name" ui:bind="text: item.name" ui:bind-hidden="query != '' && !contains(item.name, query) && !contains(item.l, query) && !contains(item.u, query)"></li>
+  </ul>
+  <script type="module" src="/dist/leonui.js"></script>
+</body>
+</html>

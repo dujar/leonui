@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign up</title>
+<link rel="stylesheet" href="/src/ui.css">
+<style>
+  body { padding: 2rem; max-width: 26rem; margin: 0 auto; }
+  .field-error { color: var(--danger); margin: 0.35rem 0 0; }
+  .field-error:empty { display: none; }
+  .welcome { margin-top: 1rem; }
+</style>
+</head>
+<body ui:state="name: ''; email: ''; age: ''; nameBad: false; emailBad: false; ageBad: false; submitted: false">
+  <h1>Sign up</h1>
+
+  <form novalidate ui:fx="submit: set nameBad = name == ''; set emailBad = email == '' || !contains(email, '@') || !contains(email, '.'); set ageBad = age != '' && (age * 1 < 1 || age * 1 > 120 || age * 1 % 1 != 0); set submitted = true">
+    <div ui:stack gap="3">
+      <div class="ui-field" ui:field>
+        <label for="f-name">Name</label>
+        <input id="f-name" name="name" type="text" ui:input ui:model="name">
+        <p class="field-error" ui:bind="text: nameBad ? 'Name is required' : ''"></p>
+      </div>
+
+      <div class="ui-field" ui:field>
+        <label for="f-email">Email</label>
+        <input id="f-email" name="email" type="text" ui:input ui:model="email">
+        <p class="field-error" ui:bind="text: emailBad ? 'Enter a valid email' : ''"></p>
+      </div>
+
+      <div class="ui-field" ui:field>
+        <label for="f-age">Age</label>
+        <input id="f-age" name="age" type="text" ui:input ui:model="age">
+        <p class="field-error" ui:bind="text: ageBad ? 'Age must be 1-120' : ''"></p>
+      </div>
+
+      <button type="submit" ui:button variant="primary">Sign up</button>
+    </div>
+  </form>
+
+  <p class="welcome" ui:bind="text: submitted && !nameBad && !emailBad && !ageBad ? 'Welcome, ' + name + '!' : ''"></p>
+
+<script type="module" src="/dist/leonui.js"></script>
+</body>
+</html>

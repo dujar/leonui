@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plans</title>
+  <link rel="stylesheet" href="/src/ui.css">
+</head>
+<body>
+  <main>
+    <h1>Plans</h1>
+    <div id="plan-tabs" ui:tabs>
+      <div role="tablist">
+        <button role="tab" id="tab-overview" aria-controls="panel-overview" aria-selected="true">Overview</button>
+        <button role="tab" id="tab-details" aria-controls="panel-details" aria-selected="false">Details</button>
+        <button role="tab" id="tab-pricing" aria-controls="panel-pricing" aria-selected="false">Pricing</button>
+      </div>
+      <section id="panel-overview" role="tabpanel" aria-labelledby="tab-overview">The starter plan includes every core feature.</section>
+      <section id="panel-details" role="tabpanel" aria-labelledby="tab-details" hidden>Billing is monthly and you can cancel anytime.</section>
+      <section id="panel-pricing" role="tabpanel" aria-labelledby="tab-pricing" hidden>The starter plan costs nine dollars per month.</section>
+    </div>
+  </main>
+  <script type="module" src="/dist/leonui.js"></script>
+</body>
+</html>

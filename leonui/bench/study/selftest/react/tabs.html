@@ -1,0 +1,35 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>selftest tabs — react</title></head>
+<body>
+  <div id="root"></div>
+  <script src="/vendor/react.bundle.js"></script>
+  <script src="/vendor/babel.min.js"></script>
+  <script type="text/babel" data-presets="react">
+    const { useState } = React;
+
+    function App() {
+      const [tab, setTab] = useState('overview');
+      const panels = {
+        overview: 'The starter plan includes every core feature.',
+        details: 'Billing is monthly and you can cancel anytime.',
+        pricing: 'The starter plan costs nine dollars per month.',
+      };
+      return (
+        <div>
+          <h1>Plans</h1>
+          <div role="tablist">
+            {['overview', 'details', 'pricing'].map(k => (
+              <button key={k} role="tab" aria-selected={tab === k ? 'true' : 'false'} onClick={() => setTab(k)}>
+                {k[0].toUpperCase() + k.slice(1)}
+              </button>
+            ))}
+          </div>
+          {Object.entries(panels).map(([k, copy]) => (
+            tab === k ? <section key={k} role="tabpanel">{copy}</section> : null
+          ))}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body></html>

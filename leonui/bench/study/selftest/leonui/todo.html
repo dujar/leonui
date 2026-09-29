@@ -1,0 +1,16 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>selftest todo — leonui</title><link rel="stylesheet" href="/src/ui.css"></head>
+<body ui:state="items: []; nextId: 1; draft: ''; doneIds: []">
+  <h1>Todo</h1>
+  <p ui:bind="text: items.length - doneIds.length + ' left'"></p>
+  <input ui:model="draft" placeholder="What needs doing?">
+  <button type="button" ui:bind-disabled="draft == ''" ui:fx="click: set items = [ { id: nextId, title: draft, done: false }, ...items ]; set nextId = nextId + 1; set draft = ''">Add</button>
+  <ul>
+    <li ui:each="item in items" ui:key="id">
+      <input type="checkbox" ui:bind-checked="contains(doneIds, item.id)" ui:fx="change: set doneIds = contains(doneIds, item.id) ? without(doneIds, item.id) : [item.id, ...doneIds]">
+      <span class="todo-title" ui:bind="text: item.title" ui:bind-class="contains(doneIds, item.id) ? 'todo-title todo-done' : 'todo-title'"></span>
+      <button type="button" ui:fx="click: set doneIds = without(doneIds, item.id); set items = without(items, item)">Remove</button>
+    </li>
+  </ul>
+  <style>.todo-done { text-decoration: line-through; }</style>
+  <script type="module" src="/dist/leonui.js"></script>
+</body></html>

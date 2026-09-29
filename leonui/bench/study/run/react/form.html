@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sign up</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 26rem; margin: 3rem auto; padding: 0 1rem; color: #1a1a2e; }
+  h1 { font-size: 1.6rem; margin: 0 0 1rem; }
+  label { display: block; margin: 0.75rem 0 0.25rem; font-weight: 600; }
+  input { width: 100%; padding: 0.4rem 0.6rem; border: 1px solid #bbb; border-radius: 6px; box-sizing: border-box; font: inherit; }
+  button { margin-top: 1rem; padding: 0.5rem 1.25rem; border: 0; border-radius: 6px; background: #4f46e5; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+  .error { color: #b91c1c; margin: 0.25rem 0 0; font-size: 0.9rem; }
+  .welcome { color: #166534; font-weight: 600; margin-top: 1rem; }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="/vendor/react.bundle.js"></script>
+  <script src="/vendor/babel.min.js"></script>
+  <script type="text/babel" data-presets="react">
+    const { useState } = React;
+
+    function Signup() {
+      const [errors, setErrors] = useState({});
+      const [welcome, setWelcome] = useState('');
+
+      const submit = e => {
+        e.preventDefault();
+        const f = e.currentTarget;
+        const name = f.elements['name'].value;
+        const email = f.elements['email'].value;
+        const age = f.elements['age'].value;
+
+        const errs = {};
+        if (name === '') errs.name = 'Name is required';
+        if (!(email.includes('@') && email.includes('.'))) errs.email = 'Enter a valid email';
+        if (age !== '') {
+          const n = Number(age);
+          if (!Number.isInteger(n) || n < 1 || n > 120) errs.age = 'Age must be 1-120';
+        }
+        setErrors(errs);
+        setWelcome(Object.keys(errs).length === 0 ? 'Welcome, ' + name + '!' : '');
+      };
+
+      return (
+        <div>
+          <h1>Sign up</h1>
+          <form onSubmit={submit} noValidate>
+            <label htmlFor="fld-name">Name</label>
+            <input id="fld-name" name="name" type="text" />
+            {errors.name && <p className="error">{errors.name}</p>}
+
+            <label htmlFor="fld-email">Email</label>
+            <input id="fld-email" name="email" type="text" />
+            {errors.email && <p className="error">{errors.email}</p>}
+
+            <label htmlFor="fld-age">Age</label>
+            <input id="fld-age" name="age" type="text" />
+            {errors.age && <p className="error">{errors.age}</p>}
+
+            <button type="submit">Sign up</button>
+          </form>
+          {welcome && <p className="welcome">{welcome}</p>}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<Signup />);
+  </script>
+</body>
+</html>

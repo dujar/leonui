@@ -1,0 +1,36 @@
+{
+  "meta": {
+    "date": "2026-09-28",
+    "model": "GLM-5.3-Flash — ZCode general-purpose subagents (the session model)",
+    "harness": "verify.ts + grade.ts over tests/harness.ts (local Chromium headless shell, CDP)",
+    "tasks": ["todo", "filter", "form", "tabs"],
+    "guidance": {
+      "leonui": "skills/leonui/SKILL.md (the 220-line shipped skill) plus the offline docs/ and pages/ trees",
+      "react": "bench/study/react-contract.md (authored for this study, ~170 lines: skeleton, hooks, gotchas, two worked examples)"
+    },
+    "verifier": {
+      "shared": "verify.ts: ephemeral server, headless Chromium, full console/page-error capture, 700 ms settle; ok:false on any console error (React's own warnings included)",
+      "leonui_extra": "ui check --json (static, browser-free); ok additionally requires __uiReady and an empty window.__ui.warns",
+      "react_ok": "no console/page errors and children mounted into #root",
+      "scope": "boot-only: the verifier never interacts with the page, so behavior is adjudicated exclusively by grade.ts"
+    }
+  },
+  "runs": [
+    { "framework": "leonui", "task": "todo",   "cycles": 1, "cyclesWithIssues": 0, "functional": "fail", "failedAssertions": ["remove beta (not done) › alpha still struck", "remove beta (not done) › status 1 left"], "lines": 40 },
+    { "framework": "leonui", "task": "filter", "cycles": 1, "cyclesWithIssues": 0, "functional": "pass", "failedAssertions": [], "lines": 17 },
+    { "framework": "leonui", "task": "form",   "cycles": 1, "cyclesWithIssues": 0, "functional": "fail", "failedAssertions": ["valid submit › welcome shown"], "lines": 46 },
+    { "framework": "leonui", "task": "tabs",   "cycles": 1, "cyclesWithIssues": 0, "functional": "pass", "failedAssertions": [], "lines": 25 },
+    { "framework": "react",  "task": "todo",   "cycles": 1, "cyclesWithIssues": 0, "functional": "pass", "failedAssertions": [], "lines": 55 },
+    { "framework": "react",  "task": "filter", "cycles": 1, "cyclesWithIssues": 0, "functional": "pass", "failedAssertions": [], "lines": 37 },
+    { "framework": "react",  "task": "form",   "cycles": 1, "cyclesWithIssues": 0, "functional": "pass", "failedAssertions": [], "lines": 71 },
+    { "framework": "react",  "task": "tabs",   "cycles": 1, "cyclesWithIssues": 0, "functional": "pass", "failedAssertions": [], "lines": 48 }
+  ],
+  "notes": [
+    "Protocol incident: two duplicate launches were killed by a platform concurrency cap mid-run and left partial artifacts; the affected participant (leonui/todo) was re-run from a clean slate and an orphan tabs.html was discarded. All reported runs are the clean runs; raw logs are committed beside the pages.",
+    "All 8 participants reported their verifier green on cycle 1 — nobody iterated. The grader then failed 2 of the 8 pages. Every failure is an escaped defect: verifier-green, checker-clean, warns-empty, and functionally broken.",
+    "Both leonui escapes are runtime-semantics traps, not grammar misuse — neither ui check nor window.__ui.warns can name them today. (a) todo: `set item.done = !item.done` inside a ui:each row copy-on-writes the row's item signal; the array still holds done=false, so the next array replacement — removing a different row — reverts the toggled row. Confirmed by dumping the array signal directly. (b) form: binds track dependencies once at attach; notify-triggered re-runs execute untracked, so they never re-subscribe. With && short-circuiting, `submitted && !nameBad && !emailBad && !ageBad ? 'Welcome…' : ''` boot-subscribes only to `submitted`; after an invalid submit flips it true, later error-flag changes notify signals with zero subscribers and the welcome line can never render. Single-submit flows work; the invalid-then-valid flow does not.",
+    "React's reactivity is structurally immune to both trap shapes (a state change re-renders whatever reads it), which is why the same task set escapes nothing there — at the cost of a runtime that is several times larger (see the size table above).",
+    "Adaptations worth reading: the leonui/filter agent solved case-insensitivity inside the whitelist by storing three case variants per product (name/l/u) since no lower() operator exists; both react agents, told their console-only verifier cannot exercise interactions, chose uncontrolled inputs read at submit/click time to be robust against React's change-event dedup.",
+    "This is a pilot: 4 tasks, one model, one harness. It names two concrete framework defects and gives a baseline; it does not rank the frameworks."
+  ]
+}

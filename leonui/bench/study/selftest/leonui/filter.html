@@ -1,0 +1,9 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>selftest filter — leonui</title><link rel="stylesheet" href="/src/ui.css"></head>
+<body ui:state="query: ''; products: [ { name: 'Aluminum Tee' }, { name: 'Bamboo Desk Mat' }, { name: 'Copper Kettle' }, { name: 'Desk Cable Tray' }, { name: 'Ergo Footrest' }, { name: 'Felt Organizer' }, { name: 'Gel Wrist Rest' }, { name: 'Hub Adapter Pro' }, { name: 'Ink Roller Pen' }, { name: 'Jute Storage Bin' } ]">
+  <h1>Catalog</h1>
+  <input ui:model="query" placeholder="Search products">
+  <ul>
+    <li ui:each="p in products" ui:key="name" ui:bind-hidden="!contains(p.name, query)"><span ui:bind="text: p.name"></span></li>
+  </ul>
+  <script type="module" src="/dist/leonui.js"></script>
+</body></html>
